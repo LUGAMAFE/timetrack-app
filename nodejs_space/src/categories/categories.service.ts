@@ -18,6 +18,8 @@ export class CategoriesService {
   constructor(private supabaseService: SupabaseService) {}
 
   async findAll(userId: string) {
+    this.logger.log(`Fetching categories for user: ${userId}`);
+    
     const { data, error } = await this.supabaseService
       .getAdminClient()
       .from('categories')
@@ -26,13 +28,16 @@ export class CategoriesService {
       .order('created_at', { ascending: true });
 
     if (error) {
-      this.logger.error(`Error fetching categories: ${error.message}`);
+      this.logger.error(`Error fetching categories: ${error.message}`, error);
       throw new BadRequestException(error.message);
     }
-    return data;
+    this.logger.log(`Found ${data?.length ?? 0} categories`);
+    return data ?? [];
   }
 
   async create(userId: string, dto: CreateCategoryDto) {
+    this.logger.log(`Creating category for user ${userId}: ${JSON.stringify(dto)}`);
+    
     const { data, error } = await this.supabaseService
       .getAdminClient()
       .from('categories')
@@ -41,17 +46,18 @@ export class CategoriesService {
         name: dto.name,
         icon: dto.icon,
         color: dto.color,
-        monthly_goal_hours: dto.monthly_goal_hours,
-        monthly_limit_hours: dto.monthly_limit_hours,
+        monthly_goal_hours: dto.monthly_goal_hours ?? null,
+        monthly_limit_hours: dto.monthly_limit_hours ?? null,
         is_default: false,
       })
       .select()
       .single();
 
     if (error) {
-      this.logger.error(`Error creating category: ${error.message}`);
+      this.logger.error(`Error creating category: ${error.message}`, error);
       throw new BadRequestException(error.message);
     }
+    this.logger.log(`Category created successfully: ${data?.id}`);
     return data;
   }
 
@@ -101,9 +107,14 @@ export class CategoriesService {
   }
 
   async seedDefaults(userId: string) {
+    this.logger.log(`Seeding defaults for user: ${userId}`);
+    
     // Check if user already has categories
     const existing = await this.findAll(userId);
-    if (existing.length > 0) {
+    this.logger.log(`Existing categories: ${existing?.length ?? 0}`);
+    
+    if (existing && existing.length > 0) {
+      this.logger.log('User already has categories, skipping seed');
       return existing;
     }
 
@@ -115,6 +126,8 @@ export class CategoriesService {
       is_default: true,
     }));
 
+    this.logger.log(`Inserting ${categoriesToInsert.length} default categories`);
+    
     const { data, error } = await this.supabaseService
       .getAdminClient()
       .from('categories')
@@ -122,9 +135,10 @@ export class CategoriesService {
       .select();
 
     if (error) {
-      this.logger.error(`Error seeding categories: ${error.message}`);
+      this.logger.error(`Error seeding categories: ${error.message}`, error);
       throw new BadRequestException(error.message);
     }
+    this.logger.log(`Seeded ${data?.length ?? 0} categories successfully`);
     return data;
   }
 }
