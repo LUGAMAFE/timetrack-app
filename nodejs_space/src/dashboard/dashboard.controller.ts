@@ -2,7 +2,8 @@ import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { DashboardService } from './dashboard.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { CurrentUser, AuthUser } from '../auth/user.decorator';
+import { CurrentUser } from '../auth/user.decorator';
+import type { AuthUser } from '../auth/user.decorator';
 
 @ApiTags('Dashboard')
 @ApiBearerAuth('Supabase-Auth')

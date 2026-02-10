@@ -3,7 +3,8 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagg
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { CurrentUser, AuthUser } from '../auth/user.decorator';
+import { CurrentUser } from '../auth/user.decorator';
+import type { AuthUser } from '../auth/user.decorator';
 
 @ApiTags('Categories')
 @ApiBearerAuth('Supabase-Auth')

@@ -3,7 +3,8 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@ne
 import { TimeEntriesService } from './time-entries.service';
 import { CreateTimeEntryDto, UpdateTimeEntryDto, TimeEntryQueryDto } from './dto/time-entry.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { CurrentUser, AuthUser } from '../auth/user.decorator';
+import { CurrentUser } from '../auth/user.decorator';
+import type { AuthUser } from '../auth/user.decorator';
 
 @ApiTags('Time Entries')
 @ApiBearerAuth('Supabase-Auth')

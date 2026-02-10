@@ -2,7 +2,8 @@ import { Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { StreaksService } from './streaks.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { CurrentUser, AuthUser } from '../auth/user.decorator';
+import { CurrentUser } from '../auth/user.decorator';
+import type { AuthUser } from '../auth/user.decorator';
 
 @ApiTags('Streaks')
 @ApiBearerAuth('Supabase-Auth')
