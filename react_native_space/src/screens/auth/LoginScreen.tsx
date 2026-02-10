@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../stores/authStore';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -10,12 +11,17 @@ type Props = { navigation: NativeStackNavigationProp<any> };
 export const LoginScreen: React.FC<Props> = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { login, isLoading, error, clearError } = useAuthStore();
+  const { login, loginWithGoogle, isLoading, error, clearError } = useAuthStore();
 
   const handleLogin = async () => {
     if (!email?.trim() || !password?.trim()) return;
     clearError();
     await login(email.trim(), password);
+  };
+
+  const handleGoogleLogin = async () => {
+    clearError();
+    await loginWithGoogle();
   };
 
   return (
@@ -30,6 +36,25 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
               <Text className="text-red-600 dark:text-red-300 text-center">{error}</Text>
             </View>
           )}
+
+          {/* Google Login Button */}
+          <Pressable
+            onPress={handleGoogleLogin}
+            disabled={isLoading}
+            className="bg-white border border-gray-300 dark:bg-gray-800 dark:border-gray-600 py-4 rounded-lg mb-4 flex-row items-center justify-center"
+          >
+            <Ionicons name="logo-google" size={20} color="#DB4437" />
+            <Text className="text-gray-700 dark:text-white font-semibold text-lg ml-3">
+              Continue with Google
+            </Text>
+          </Pressable>
+
+          {/* Divider */}
+          <View className="flex-row items-center my-4">
+            <View className="flex-1 h-px bg-gray-300 dark:bg-gray-600" />
+            <Text className="mx-4 text-gray-500 dark:text-gray-400">or</Text>
+            <View className="flex-1 h-px bg-gray-300 dark:bg-gray-600" />
+          </View>
 
           <TextInput
             placeholder="Email"

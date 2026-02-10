@@ -1,6 +1,12 @@
 import { create } from 'zustand';
+import { Platform } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { User, Session } from '@supabase/supabase-js';
+import * as WebBrowser from 'expo-web-browser';
+import { makeRedirectUri } from 'expo-auth-session';
+
+// Required for web browser auth
+WebBrowser.maybeCompleteAuthSession();
 
 interface AuthState {
   user: User | null;
@@ -10,6 +16,7 @@ interface AuthState {
   initialized: boolean;
   initialize: () => Promise<void>;
   login: (email: string, password: string) => Promise<boolean>;
+  loginWithGoogle: () => Promise<boolean>;
   signup: (email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<boolean>;
@@ -59,7 +66,6 @@ export const useAuthStore = create<AuthState>((set) => ({
         return false;
       }
       console.log('[Auth] Login success, session:', !!data?.session);
-      // Explicitly set session and user after successful login
       set({ 
         session: data?.session ?? null, 
         user: data?.session?.user ?? null,
@@ -69,6 +75,79 @@ export const useAuthStore = create<AuthState>((set) => ({
     } catch (e: any) {
       console.log('[Auth] Login exception:', e?.message);
       set({ error: e?.message || 'Login failed', isLoading: false });
+      return false;
+    }
+  },
+
+  loginWithGoogle: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      console.log('[Auth] Starting Google login, platform:', Platform.OS);
+      
+      const redirectUri = makeRedirectUri({
+        scheme: 'com.abacusai.app.t1770751550',
+        path: 'auth/callback',
+      });
+      
+      console.log('[Auth] Redirect URI:', redirectUri);
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: redirectUri,
+          skipBrowserRedirect: Platform.OS !== 'web',
+        },
+      });
+
+      if (error) {
+        console.log('[Auth] Google OAuth error:', error.message);
+        set({ error: error.message, isLoading: false });
+        return false;
+      }
+
+      // For native platforms, open the browser
+      if (Platform.OS !== 'web' && data?.url) {
+        console.log('[Auth] Opening browser for OAuth:', data.url);
+        const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUri);
+        console.log('[Auth] Browser result:', result.type);
+        
+        if (result.type === 'success' && result.url) {
+          // Extract tokens from URL
+          const url = new URL(result.url);
+          const params = new URLSearchParams(url.hash.substring(1));
+          const accessToken = params.get('access_token');
+          const refreshToken = params.get('refresh_token');
+          
+          if (accessToken) {
+            const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken || '',
+            });
+            
+            if (sessionError) {
+              set({ error: sessionError.message, isLoading: false });
+              return false;
+            }
+            
+            set({
+              session: sessionData?.session ?? null,
+              user: sessionData?.session?.user ?? null,
+              isLoading: false,
+            });
+            return true;
+          }
+        }
+        
+        set({ isLoading: false });
+        return false;
+      }
+
+      // For web, the redirect happens automatically
+      set({ isLoading: false });
+      return true;
+    } catch (e: any) {
+      console.log('[Auth] Google login exception:', e?.message);
+      set({ error: e?.message || 'Google login failed', isLoading: false });
       return false;
     }
   },
