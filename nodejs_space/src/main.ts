@@ -8,8 +8,20 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const logger = new Logger('Bootstrap');
 
-  app.enableCors();
+  // Enable CORS for all origins
+  app.enableCors({
+    origin: true,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    credentials: true,
+  });
+  
   app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
+  
+  // Log all incoming requests
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    logger.log(`${req.method} ${req.url}`);
+    next();
+  });
 
   // Cache control middleware for Swagger
   const swaggerPath = 'api-docs';
