@@ -109,36 +109,35 @@ export class CategoriesService {
   async seedDefaults(userId: string) {
     this.logger.log(`Seeding defaults for user: ${userId}`);
     
-    // Check if user already has categories
-    const existing = await this.findAll(userId);
-    this.logger.log(`Existing categories: ${existing?.length ?? 0}`);
+    // Use upsert to prevent duplicates - check by user_id and name
+    const results = [];
     
-    if (existing && existing.length > 0) {
-      this.logger.log('User already has categories, skipping seed');
-      return existing;
+    for (const cat of DEFAULT_CATEGORIES) {
+      const { data, error } = await this.supabaseService
+        .getAdminClient()
+        .from('categories')
+        .upsert(
+          {
+            user_id: userId,
+            name: cat.name,
+            icon: cat.icon,
+            color: cat.color,
+            is_default: true,
+          },
+          {
+            onConflict: 'user_id,name',
+            ignoreDuplicates: true,
+          }
+        )
+        .select()
+        .single();
+
+      if (!error && data) {
+        results.push(data);
+      }
     }
 
-    const categoriesToInsert = DEFAULT_CATEGORIES.map((cat) => ({
-      user_id: userId,
-      name: cat.name,
-      icon: cat.icon,
-      color: cat.color,
-      is_default: true,
-    }));
-
-    this.logger.log(`Inserting ${categoriesToInsert.length} default categories`);
-    
-    const { data, error } = await this.supabaseService
-      .getAdminClient()
-      .from('categories')
-      .insert(categoriesToInsert)
-      .select();
-
-    if (error) {
-      this.logger.error(`Error seeding categories: ${error.message}`, error);
-      throw new BadRequestException(error.message);
-    }
-    this.logger.log(`Seeded ${data?.length ?? 0} categories successfully`);
-    return data;
+    this.logger.log(`Seeded/verified ${results.length} categories`);
+    return await this.findAll(userId);
   }
 }
