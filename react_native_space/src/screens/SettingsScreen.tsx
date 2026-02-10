@@ -28,7 +28,7 @@ export const SettingsScreen: React.FC<Props> = ({ navigation }) => {
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50 dark:bg-gray-900">
+    <SafeAreaView edges={["top"]} className="flex-1 bg-gray-50 dark:bg-gray-900">
       <View className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
         <Text className="text-2xl font-bold text-gray-900 dark:text-white">Settings</Text>
       </View>

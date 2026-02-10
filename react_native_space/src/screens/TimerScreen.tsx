@@ -51,7 +51,7 @@ export const TimerScreen: React.FC = () => {
   const selectedCat = (categories ?? []).find(c => c?.id === selectedCategoryId);
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50 dark:bg-gray-900">
+    <SafeAreaView edges={["top"]} className="flex-1 bg-gray-50 dark:bg-gray-900">
       <View className="flex-1 items-center justify-center px-6">
         {/* Timer Display */}
         <View className="mb-8">

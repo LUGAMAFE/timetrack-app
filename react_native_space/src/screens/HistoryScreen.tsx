@@ -49,7 +49,7 @@ export const HistoryScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50 dark:bg-gray-900">
+    <SafeAreaView edges={["top"]} className="flex-1 bg-gray-50 dark:bg-gray-900">
       <View className="flex-row items-center justify-between px-4 py-3 bg-white dark:bg-gray-800">
         <Pressable onPress={() => changeMonth(-1)}><Ionicons name="chevron-back" size={24} color="#6366F1" /></Pressable>
         <Text className="text-lg font-semibold text-gray-900 dark:text-white">{formatMonth(currentMonth)}</Text>
