@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Pressable, Switch, Alert } from 'react-native';
+import { View, Text, Pressable, Switch, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../stores/authStore';
@@ -13,10 +13,17 @@ export const SettingsScreen: React.FC<Props> = ({ navigation }) => {
   const { isDarkMode, toggleDarkMode } = useThemeStore();
 
   const handleLogout = () => {
-    Alert.alert('Logout', 'Are you sure?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Logout', style: 'destructive', onPress: logout }
-    ]);
+    if (Platform.OS === 'web') {
+      // Use window.confirm for web
+      if (window.confirm('Are you sure you want to logout?')) {
+        logout();
+      }
+    } else {
+      Alert.alert('Logout', 'Are you sure?', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Logout', style: 'destructive', onPress: logout }
+      ]);
+    }
   };
 
   const MenuItem = ({ icon, label, onPress, rightElement }: { icon: string; label: string; onPress?: () => void; rightElement?: React.ReactNode }) => (

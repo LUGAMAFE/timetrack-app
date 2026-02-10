@@ -170,7 +170,15 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: async () => {
     set({ isLoading: true });
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+      // Clear web storage
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        localStorage.removeItem('supabase_session');
+      }
+    } catch (e) {
+      console.log('[Auth] Logout error:', e);
+    }
     set({ user: null, session: null, isLoading: false });
   },
 
