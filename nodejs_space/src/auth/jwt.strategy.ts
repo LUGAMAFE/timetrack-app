@@ -2,25 +2,33 @@ import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy, ExtractJwt } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
+import { passportJwtSecret } from 'jwks-rsa';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   private readonly logger = new Logger(JwtStrategy.name);
 
   constructor(private configService: ConfigService) {
-    const jwtSecret = configService.get<string>('SUPABASE_JWT_SECRET') || 'fallback-secret';
+    const supabaseUrl = configService.get<string>('SUPABASE_URL');
+    const jwksUri = `${supabaseUrl}/auth/v1/.well-known/jwks.json`;
     
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: jwtSecret,
+      secretOrKeyProvider: passportJwtSecret({
+        cache: true,
+        rateLimit: true,
+        jwksRequestsPerMinute: 10,
+        jwksUri: jwksUri,
+      }),
+      algorithms: ['ES256', 'RS256'],
     });
     
-    this.logger.log(`JWT Strategy initialized, secret length: ${jwtSecret?.length ?? 0}`);
+    this.logger.log(`JWT Strategy initialized with JWKS from: ${jwksUri}`);
   }
 
   async validate(payload: any) {
-    this.logger.log(`Validating JWT payload: ${JSON.stringify(payload)}`);
+    this.logger.log(`Validating JWT payload for user: ${payload?.sub}`);
     
     if (!payload?.sub) {
       this.logger.warn('Invalid JWT payload: missing sub');
