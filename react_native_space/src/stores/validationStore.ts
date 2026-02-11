@@ -61,9 +61,12 @@ export const useValidationStore = create<ValidationState>((set, get) => ({
   fetchOmissionReasons: async () => {
     try {
       const response = await api.get('/validations/omission-reasons');
-      set({ omissionReasons: response?.data ?? [] });
+      const reasons = response?.data ?? [];
+      console.log('[ValidationStore] Fetched omission reasons:', reasons.length);
+      set({ omissionReasons: reasons });
     } catch (e: any) {
       console.error('[ValidationStore] fetchOmissionReasons error:', e?.message);
+      set({ omissionReasons: [] });
     }
   },
 

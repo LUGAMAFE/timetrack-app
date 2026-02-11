@@ -285,7 +285,83 @@ export class ValidationsService {
     if (error) {
       throw new BadRequestException(error.message);
     }
-    return data ?? [];
+
+    // If empty, seed default reasons
+    if (!data || data.length === 0) {
+      this.logger.log('No omission reasons found, seeding defaults...');
+      await this.seedDefaultOmissionReasons();
+      
+      // Retry fetching
+      const { data: seededData, error: retryError } = await this.supabaseService
+        .getAdminClient()
+        .from('omission_reasons')
+        .select('*')
+        .eq('is_system_default', true)
+        .order('category', { ascending: true });
+
+      if (retryError) {
+        throw new BadRequestException(retryError.message);
+      }
+      
+      // Transform to match frontend expectations (label = name)
+      return (seededData ?? []).map(reason => ({
+        ...reason,
+        label: reason.name,
+        code: reason.category,
+        severity: this.mapCategoryToSeverity(reason.category),
+      }));
+    }
+
+    // Transform to match frontend expectations
+    return (data ?? []).map(reason => ({
+      ...reason,
+      label: reason.name,
+      code: reason.category,
+      severity: this.mapCategoryToSeverity(reason.category),
+    }));
+  }
+
+  private mapCategoryToSeverity(category: string): 'low' | 'medium' | 'high' {
+    switch (category) {
+      case 'health':
+      case 'emergency':
+        return 'high';
+      case 'rescheduled':
+      case 'external':
+        return 'medium';
+      case 'laziness':
+      case 'other':
+      default:
+        return 'low';
+    }
+  }
+
+  private async seedDefaultOmissionReasons() {
+    const defaultReasons = [
+      { name: 'Felt tired/exhausted', category: 'health', is_system_default: true },
+      { name: 'Got sick', category: 'health', is_system_default: true },
+      { name: 'Family emergency', category: 'emergency', is_system_default: true },
+      { name: 'Work emergency', category: 'emergency', is_system_default: true },
+      { name: 'Overslept', category: 'laziness', is_system_default: true },
+      { name: 'Procrastinated', category: 'laziness', is_system_default: true },
+      { name: 'Lost track of time', category: 'laziness', is_system_default: true },
+      { name: 'Previous block ran over', category: 'external', is_system_default: true },
+      { name: 'Unexpected visitor/call', category: 'external', is_system_default: true },
+      { name: 'Rescheduled to later', category: 'rescheduled', is_system_default: true },
+      { name: 'Changed priorities', category: 'rescheduled', is_system_default: true },
+      { name: 'Other', category: 'other', is_system_default: true },
+    ];
+
+    const { error } = await this.supabaseService
+      .getAdminClient()
+      .from('omission_reasons')
+      .insert(defaultReasons);
+
+    if (error) {
+      this.logger.error(`Failed to seed omission reasons: ${error.message}`);
+    } else {
+      this.logger.log(`Successfully seeded ${defaultReasons.length} default omission reasons`);
+    }
   }
 
   private async checkViolations(userId: string, block: any, validation: ValidateBlockDto) {

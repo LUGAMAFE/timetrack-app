@@ -33,6 +33,11 @@ export function ValidationCard({
   const [notes, setNotes] = useState('');
   const [reasonModalVisible, setReasonModalVisible] = useState(false);
 
+  // Debug log
+  React.useEffect(() => {
+    console.log('[ValidationCard] omissionReasons count:', omissionReasons?.length ?? 0);
+  }, [omissionReasons]);
+
   const handleComplete = () => {
     onValidate(block?.id ?? '', 'completed');
   };
