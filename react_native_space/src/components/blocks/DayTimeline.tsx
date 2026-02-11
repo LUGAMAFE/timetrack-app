@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { View, StyleSheet, Text, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { runOnJS } from 'react-native-reanimated';
@@ -172,6 +172,7 @@ export function DayTimeline({
   const isDarkMode = useThemeStore((s) => s.isDarkMode);
   const [hourHeight, setHourHeight] = useState(DEFAULT_HOUR_HEIGHT);
   const baseHeight = useRef(DEFAULT_HOUR_HEIGHT);
+  const scrollViewRef = useRef<ScrollView>(null);
   
   const hours = useMemo(() => {
     const result = [];
@@ -180,6 +181,24 @@ export function DayTimeline({
     }
     return result;
   }, [startHour, endHour]);
+
+  // Prevent scroll when zooming on web
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    
+    const preventZoomScroll = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+      }
+    };
+    
+    // Add listener with passive: false to allow preventDefault
+    document.addEventListener('wheel', preventZoomScroll, { passive: false });
+    
+    return () => {
+      document.removeEventListener('wheel', preventZoomScroll);
+    };
+  }, []);
 
   // Update hour height with clamping
   const updateHourHeight = (newHeight: number) => {
@@ -286,9 +305,15 @@ export function DayTimeline({
   // For web: use scroll wheel for zoom
   const handleWheel = (event: any) => {
     if (event.ctrlKey || event.metaKey) {
+      // Prevent both default zoom behavior AND scrolling
       event.preventDefault();
+      event.stopPropagation();
+      
       const delta = event.deltaY > 0 ? -5 : 5;
       updateHourHeight(hourHeight + delta);
+      
+      // Return false to ensure no scroll happens
+      return false;
     }
   };
 
@@ -313,9 +338,11 @@ export function DayTimeline({
       <GestureDetector gesture={composedGesture}>
         <Animated.View style={styles.gestureContainer}>
           <ScrollView 
+            ref={scrollViewRef}
             style={styles.scrollView}
             contentContainerStyle={[styles.contentContainer, { minHeight: timelineHeight + 40 }]}
             showsVerticalScrollIndicator={true}
+            scrollEnabled={true}
             // @ts-ignore - web only
             onWheel={Platform.OS === 'web' ? handleWheel : undefined}
           >
