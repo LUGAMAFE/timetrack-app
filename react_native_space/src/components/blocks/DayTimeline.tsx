@@ -286,9 +286,9 @@ export function DayTimeline({
 
   return (
     <GestureHandlerRootView style={styles.container}>
-      {/* Sticky zoom controls - Web only */}
+      {/* Sticky zoom controls - Web only - ABSOLUTE positioned */}
       {Platform.OS === 'web' && (
-        <View style={[styles.stickyZoomBar, { backgroundColor: isDarkMode ? '#1E1E1E' : '#F8F8F8' }]}>
+        <View style={[styles.stickyZoomBar, { backgroundColor: isDarkMode ? 'rgba(30,30,30,0.95)' : 'rgba(248,248,248,0.95)' }]}>
           <TouchableOpacity
             onPress={() => {
               const newHeight = Math.max(MIN_HOUR_HEIGHT, hourHeight - 10);
@@ -348,7 +348,11 @@ export function DayTimeline({
           <ScrollView 
             ref={scrollViewRef}
             style={styles.scrollView}
-            contentContainerStyle={[styles.contentContainer, { minHeight: timelineHeight + 40 }]}
+            contentContainerStyle={[
+              styles.contentContainer, 
+              { minHeight: timelineHeight + 40 },
+              Platform.OS === 'web' && { paddingTop: 52 }
+            ]}
             showsVerticalScrollIndicator={true}
           >
             <View style={[styles.timeline, { height: timelineHeight }]}>
@@ -478,6 +482,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   stickyZoomBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -486,6 +494,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E0E0E0',
     gap: 8,
+    zIndex: 1000,
   },
   stickyZoomButton: {
     width: 36,
