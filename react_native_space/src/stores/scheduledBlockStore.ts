@@ -8,6 +8,25 @@ import {
 } from '../types';
 import { format, parseISO, startOfWeek, endOfWeek, addDays } from 'date-fns';
 
+// Helper to convert numeric priority from backend to string for frontend
+const convertPriorityToString = (priority: any): 'low' | 'medium' | 'high' | 'critical' => {
+  if (typeof priority === 'string') return priority as 'low' | 'medium' | 'high' | 'critical';
+  if (typeof priority === 'number') {
+    if (priority <= 3) return 'low';
+    if (priority <= 5) return 'medium';
+    if (priority <= 7) return 'high';
+    return 'critical';
+  }
+  return 'medium'; // default
+};
+
+const normalizeBlock = (block: any): ScheduledBlock => {
+  return {
+    ...block,
+    priority: convertPriorityToString(block?.priority),
+  };
+};
+
 interface ScheduledBlockState {
   blocks: ScheduledBlock[];
   selectedDate: string;
@@ -45,7 +64,7 @@ export const useScheduledBlockStore = create<ScheduledBlockState>((set, get) => 
     set({ isLoading: true, error: null });
     try {
       const response = await api.get(`/blocks/date/${date}`);
-      const newBlocks = response?.data ?? [];
+      const newBlocks = (response?.data ?? []).map(normalizeBlock);
       
       set((state) => {
         // Merge with existing blocks, replacing those for the same date
@@ -69,7 +88,7 @@ export const useScheduledBlockStore = create<ScheduledBlockState>((set, get) => 
       const response = await api.get('/blocks/range', { 
         params: { start: startDate, end: endDate } 
       });
-      const newBlocks = response?.data ?? [];
+      const newBlocks = (response?.data ?? []).map(normalizeBlock);
       
       set((state) => {
         // Remove blocks in the range and add new ones
@@ -91,7 +110,7 @@ export const useScheduledBlockStore = create<ScheduledBlockState>((set, get) => 
     set({ isLoading: true, error: null });
     try {
       const response = await api.post('/blocks', data);
-      const newBlock = response?.data;
+      const newBlock = response?.data ? normalizeBlock(response.data) : null;
       if (newBlock) {
         set((state) => ({ 
           blocks: [...state.blocks, newBlock], 
@@ -112,7 +131,7 @@ export const useScheduledBlockStore = create<ScheduledBlockState>((set, get) => 
     set({ isLoading: true, error: null });
     try {
       const response = await api.put(`/blocks/${id}`, data);
-      const updatedBlock = response?.data;
+      const updatedBlock = response?.data ? normalizeBlock(response.data) : null;
       if (updatedBlock) {
         set((state) => ({
           blocks: state.blocks.map(b => b?.id === id ? updatedBlock : b),
@@ -164,7 +183,7 @@ export const useScheduledBlockStore = create<ScheduledBlockState>((set, get) => 
       const response = await api.get('/blocks/check-overlaps', {
         params: { date, start_time: startTime, end_time: endTime, exclude_id: excludeId }
       });
-      return response?.data ?? [];
+      return (response?.data ?? []).map(normalizeBlock);
     } catch (e: any) {
       console.error('[ScheduledBlockStore] checkOverlaps error:', e?.message);
       return [];

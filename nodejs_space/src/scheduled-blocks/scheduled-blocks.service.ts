@@ -20,6 +20,25 @@ export class ScheduledBlocksService {
 
   constructor(private readonly supabaseService: SupabaseService) {}
 
+  private convertPriorityToNumber(priority?: string): number {
+    if (!priority) return 5; // default medium
+    const priorityMap: Record<string, number> = {
+      low: 3,
+      medium: 5,
+      high: 7,
+      critical: 10,
+    };
+    return priorityMap[priority.toLowerCase()] ?? 5;
+  }
+
+  private prepareBlockData(dto: CreateBlockDto | UpdateBlockDto) {
+    const { priority, ...rest } = dto;
+    return {
+      ...rest,
+      priority: typeof priority === 'string' ? this.convertPriorityToNumber(priority) : priority,
+    };
+  }
+
   async findByDate(userId: string, date: string) {
     const { data, error } = await this.supabaseService
       .getAdminClient()
@@ -78,12 +97,15 @@ export class ScheduledBlocksService {
       throw new BadRequestException('Block overlaps with existing block');
     }
 
+    // Convert priority string to number for database
+    const preparedData = this.prepareBlockData(dto);
+
     const { data, error } = await this.supabaseService
       .getAdminClient()
       .from('scheduled_blocks')
       .insert({
         user_id: userId,
-        ...dto,
+        ...preparedData,
       })
       .select(`
         *,
@@ -141,10 +163,13 @@ export class ScheduledBlocksService {
       }
     }
 
+    // Convert priority string to number for database
+    const preparedData = this.prepareBlockData(dto);
+
     const { data, error } = await this.supabaseService
       .getAdminClient()
       .from('scheduled_blocks')
-      .update({ ...dto, updated_at: new Date().toISOString() })
+      .update({ ...preparedData, updated_at: new Date().toISOString() })
       .eq('id', blockId)
       .eq('user_id', userId)
       .select(`
