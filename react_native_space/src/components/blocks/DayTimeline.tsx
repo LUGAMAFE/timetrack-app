@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
-import { View, StyleSheet, Text, ScrollView, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useMemo, useState, useRef } from 'react';
+import { View, StyleSheet, Text, ScrollView, TouchableOpacity, Platform } from 'react-native';
+import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
+import Animated, { runOnJS } from 'react-native-reanimated';
 import { useThemeStore } from '../../stores/themeStore';
 import type { ScheduledBlock } from '../../types';
 import { format } from 'date-fns';
@@ -14,9 +15,10 @@ interface DayTimelineProps {
   endHour?: number;
 }
 
-// Zoom levels for hour height
-const ZOOM_LEVELS = [40, 60, 80, 100, 120, 150]; // px per hour
-const DEFAULT_ZOOM_INDEX = 1; // 60px default
+// Zoom constraints
+const MIN_HOUR_HEIGHT = 40;
+const MAX_HOUR_HEIGHT = 180;
+const DEFAULT_HOUR_HEIGHT = 60;
 const HOUR_LABEL_WIDTH = 50;
 
 // Convierte "HH:mm" a minutos desde medianoche
@@ -168,9 +170,8 @@ export function DayTimeline({
   endHour = 24,
 }: DayTimelineProps) {
   const isDarkMode = useThemeStore((s) => s.isDarkMode);
-  const [zoomIndex, setZoomIndex] = useState(DEFAULT_ZOOM_INDEX);
-  
-  const hourHeight = ZOOM_LEVELS[zoomIndex] ?? 60;
+  const [hourHeight, setHourHeight] = useState(DEFAULT_HOUR_HEIGHT);
+  const baseHeight = useRef(DEFAULT_HOUR_HEIGHT);
   
   const hours = useMemo(() => {
     const result = [];
@@ -180,17 +181,24 @@ export function DayTimeline({
     return result;
   }, [startHour, endHour]);
 
-  const handleZoomIn = () => {
-    if (zoomIndex < ZOOM_LEVELS.length - 1) {
-      setZoomIndex(zoomIndex + 1);
-    }
+  // Update hour height with clamping
+  const updateHourHeight = (newHeight: number) => {
+    const clamped = Math.max(MIN_HOUR_HEIGHT, Math.min(MAX_HOUR_HEIGHT, newHeight));
+    setHourHeight(clamped);
   };
 
-  const handleZoomOut = () => {
-    if (zoomIndex > 0) {
-      setZoomIndex(zoomIndex - 1);
-    }
-  };
+  // Pinch gesture for zoom
+  const pinchGesture = Gesture.Pinch()
+    .onStart(() => {
+      baseHeight.current = hourHeight;
+    })
+    .onUpdate((event) => {
+      const newHeight = baseHeight.current * event.scale;
+      runOnJS(updateHourHeight)(newHeight);
+    })
+    .onEnd(() => {
+      baseHeight.current = hourHeight;
+    });
 
   const positionedBlocks = useMemo(() => {
     // Filter blocks for this specific date
@@ -262,54 +270,56 @@ export function DayTimeline({
 
   const timelineHeight = (endHour - startHour) * hourHeight;
 
+  // Double tap to reset zoom
+  const doubleTapGesture = Gesture.Tap()
+    .numberOfTaps(2)
+    .onEnd(() => {
+      runOnJS(setHourHeight)(DEFAULT_HOUR_HEIGHT);
+    });
+
+  // Combine gestures
+  const composedGesture = Gesture.Simultaneous(pinchGesture, doubleTapGesture);
+
+  // Zoom hint visibility
+  const zoomPercent = Math.round((hourHeight / DEFAULT_HOUR_HEIGHT) * 100);
+
+  // For web: use scroll wheel for zoom
+  const handleWheel = (event: any) => {
+    if (event.ctrlKey || event.metaKey) {
+      event.preventDefault();
+      const delta = event.deltaY > 0 ? -5 : 5;
+      updateHourHeight(hourHeight + delta);
+    }
+  };
+
   return (
-    <View style={styles.container}>
-      {/* Zoom Controls */}
-      <View style={[styles.zoomControls, { backgroundColor: isDarkMode ? '#2A2A2A' : '#FFFFFF' }]}>
-        <View style={styles.zoomLeft}>
-          <TouchableOpacity 
-            onPress={handleZoomOut} 
-            disabled={zoomIndex === 0}
-            style={[
-              styles.zoomButton,
-              zoomIndex === 0 && styles.zoomButtonDisabled
-            ]}
-          >
-            <Ionicons 
-              name="remove-circle-outline" 
-              size={24} 
-              color={zoomIndex === 0 ? '#888888' : (isDarkMode ? '#FFFFFF' : '#000000')} 
-            />
-          </TouchableOpacity>
-        </View>
-        <Text style={[styles.zoomText, { color: isDarkMode ? '#FFFFFF' : '#000000' }]}>
-          {hourHeight}px
+    <GestureHandlerRootView style={styles.container}>
+      {/* Zoom indicator - shows current zoom level */}
+      <View style={[styles.zoomIndicator, { backgroundColor: isDarkMode ? '#2A2A2A' : '#F5F5F5' }]}>
+        <Text style={[styles.zoomHint, { color: isDarkMode ? '#888' : '#666' }]}>
+          {Platform.OS === 'web' ? '⌘/Ctrl + Scroll to zoom' : 'Pinch to zoom'} • {zoomPercent}%
         </Text>
-        <View style={styles.zoomRight}>
+        {zoomPercent !== 100 && (
           <TouchableOpacity 
-            onPress={handleZoomIn}
-            disabled={zoomIndex === ZOOM_LEVELS.length - 1}
-            style={[
-              styles.zoomButton,
-              zoomIndex === ZOOM_LEVELS.length - 1 && styles.zoomButtonDisabled
-            ]}
+            onPress={() => setHourHeight(DEFAULT_HOUR_HEIGHT)}
+            style={styles.resetButton}
           >
-            <Ionicons 
-              name="add-circle-outline" 
-              size={24} 
-              color={zoomIndex === ZOOM_LEVELS.length - 1 ? '#888888' : (isDarkMode ? '#FFFFFF' : '#000000')} 
-            />
+            <Text style={styles.resetText}>Reset</Text>
           </TouchableOpacity>
-        </View>
+        )}
       </View>
 
-      {/* Timeline ScrollView */}
-      <ScrollView 
-        style={styles.scrollView}
-        contentContainerStyle={[styles.contentContainer, { minHeight: timelineHeight + 40 }]}
-        showsVerticalScrollIndicator={true}
-      >
-        <View style={[styles.timeline, { height: timelineHeight }]}>
+      {/* Timeline with gesture handler */}
+      <GestureDetector gesture={composedGesture}>
+        <Animated.View style={styles.gestureContainer}>
+          <ScrollView 
+            style={styles.scrollView}
+            contentContainerStyle={[styles.contentContainer, { minHeight: timelineHeight + 40 }]}
+            showsVerticalScrollIndicator={true}
+            // @ts-ignore - web only
+            onWheel={Platform.OS === 'web' ? handleWheel : undefined}
+          >
+            <View style={[styles.timeline, { height: timelineHeight }]}>
           {/* Hour lines */}
           {hours.map((hour) => {
             const top = (hour - startHour) * hourHeight;
@@ -415,10 +425,12 @@ export function DayTimeline({
               </TouchableOpacity>
             );
           })}
-        </View>
-      </View>
-    </ScrollView>
-    </View>
+            </View>
+          </View>
+        </ScrollView>
+        </Animated.View>
+      </GestureDetector>
+    </GestureHandlerRootView>
   );
 }
 
@@ -433,34 +445,33 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  zoomControls: {
+  zoomIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    justifyContent: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#E0E0E0',
   },
-  zoomLeft: {
-    width: 60,
-    alignItems: 'flex-start',
+  zoomHint: {
+    fontSize: 11,
+    fontWeight: '500',
   },
-  zoomRight: {
-    width: 60,
-    alignItems: 'flex-end',
+  resetButton: {
+    marginLeft: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    backgroundColor: '#6200EE',
+    borderRadius: 12,
   },
-  zoomButton: {
-    padding: 4,
-  },
-  zoomButtonDisabled: {
-    opacity: 0.3,
-  },
-  zoomText: {
-    fontSize: 12,
+  resetText: {
+    fontSize: 10,
     fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  gestureContainer: {
     flex: 1,
-    textAlign: 'center',
   },
   scrollView: {
     flex: 1,
