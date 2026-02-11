@@ -72,31 +72,56 @@ export class ValidationsService {
   }
 
   async getPendingValidations(userId: string, date?: string) {
-    let query = this.supabaseService
+    // If no date provided, only get TODAY's pending blocks
+    const targetDate = date || new Date().toISOString().split('T')[0];
+    
+    const { data, error } = await this.supabaseService
       .getAdminClient()
       .from('block_validations')
       .select(`
-        *,
+        id,
+        block_id,
+        status,
         scheduled_block:scheduled_blocks!inner(
-          *,
+          id,
+          date,
+          start_time,
+          end_time,
+          title,
+          notes,
+          is_flexible,
+          priority,
           category:categories(*)
         )
       `)
       .eq('user_id', userId)
-      .eq('status', 'pending');
-
-    if (date) {
-      query = query.eq('scheduled_block.date', date);
-    }
-
-    const { data, error } = await query.order('created_at', { ascending: true });
+      .eq('status', 'pending')
+      .eq('scheduled_block.date', targetDate)
+      .order('created_at', { ascending: true });
 
     if (error) {
       this.logger.error(`Error fetching pending validations: ${error.message}`);
       throw new BadRequestException(error.message);
     }
 
-    return data ?? [];
+    // Transform to PendingBlock format with days_ago calculation
+    const today = new Date().toISOString().split('T')[0];
+    const transformed = (data ?? []).map((validation: any) => {
+      const block = validation?.scheduled_block;
+      if (!block || !block?.date) return null;
+
+      const blockDate = new Date(block.date);
+      const todayDate = new Date(today);
+      const daysAgo = Math.floor((todayDate.getTime() - blockDate.getTime()) / (1000 * 60 * 60 * 24));
+
+      return {
+        ...block,
+        days_ago: daysAgo,
+        validation_id: validation.id, // Include validation ID for updates
+      };
+    }).filter(Boolean);
+
+    return transformed;
   }
 
   async getValidationStats(userId: string, startDate: string, endDate: string) {

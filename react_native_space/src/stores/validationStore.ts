@@ -35,7 +35,23 @@ export const useValidationStore = create<ValidationState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const response = await api.get('/validations/pending');
-      set({ pendingBlocks: response?.data ?? [], isLoading: false });
+      const blocks = (response?.data ?? []).map((block: any) => {
+        // Ensure days_ago is a number
+        const daysAgo = typeof block?.days_ago === 'number' ? block.days_ago : 0;
+        
+        return {
+          ...block,
+          days_ago: daysAgo,
+          // Ensure required fields have fallback values
+          id: block?.id ?? '',
+          title: block?.title ?? 'Untitled',
+          date: block?.date ?? '',
+          start_time: block?.start_time ?? '00:00',
+          end_time: block?.end_time ?? '23:59',
+        };
+      });
+      
+      set({ pendingBlocks: blocks, isLoading: false });
     } catch (e: any) {
       console.error('[ValidationStore] fetchPendingBlocks error:', e?.message);
       set({ error: e?.response?.data?.message ?? 'Failed to fetch pending blocks', isLoading: false });
