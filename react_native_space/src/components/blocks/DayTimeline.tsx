@@ -314,7 +314,7 @@ export function DayTimeline({
           {hours.map((hour) => {
             const top = (hour - startHour) * hourHeight;
           return (
-            <View key={hour} style={[styles.hourRow, { top }]}>
+            <View key={hour} style={[styles.hourRow, { top, height: hourHeight }]}>
               <Text style={[styles.hourLabel, { color: isDarkMode ? '#888888' : '#666666' }]}>
                 {formatHour(hour)}
               </Text>
@@ -495,7 +495,6 @@ const styles = StyleSheet.create({
     right: 0,
     flexDirection: 'row',
     alignItems: 'flex-start',
-    height: HOUR_HEIGHT,
   },
   hourLabel: {
     width: HOUR_LABEL_WIDTH,
