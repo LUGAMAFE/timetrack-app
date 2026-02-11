@@ -119,7 +119,11 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
     try {
       // Check if user already has categories
       const response = await api.get('/categories');
-      const existing = response?.data ?? [];
+      // Backend returns { categories: [...] }
+      const existingArray = response?.data?.categories ?? [];
+      const existing = Array.isArray(existingArray) ? existingArray : [];
+      
+      console.log('[CategoryStore] seedDefaults - existing categories count:', existing.length);
       
       if (existing.length > 0) {
         set({ categories: existing });
@@ -136,19 +140,23 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
         { name: 'Social', icon: 'people', color: '#FF9800' },
       ];
 
+      console.log('[CategoryStore] seedDefaults - creating default categories');
       const newCategories: Category[] = [];
       for (const cat of defaults) {
         try {
           const res = await api.post('/categories', cat);
-          if (res?.data) {
-            newCategories.push(res.data);
+          // Backend returns { category: {...} }
+          const newCat = res?.data?.category;
+          if (newCat) {
+            newCategories.push(newCat);
           }
-        } catch (err) {
-          console.log('[CategoryStore] Error creating default category:', cat.name);
+        } catch (err: any) {
+          console.log('[CategoryStore] Error creating default category:', cat.name, err?.message);
         }
       }
 
       set({ categories: newCategories });
+      console.log('[CategoryStore] seedDefaults - created', newCategories.length, 'categories');
     } catch (e: any) {
       console.error('[CategoryStore] seedDefaults error:', e?.message);
     }
