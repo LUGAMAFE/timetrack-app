@@ -104,9 +104,9 @@ export class ScheduledBlocksService {
   }
 
   async create(userId: string, dto: CreateBlockDto) {
-    // Validate no overlapping blocks
+    // Validate no overlapping blocks on SAME date
     const existing = await this.findByDate(userId, dto.date);
-    const hasOverlap = existing.some((block: any) => {
+    const overlappingBlock = existing.find((block: any) => {
       return this.timesOverlap(
         dto.start_time,
         dto.end_time,
@@ -115,8 +115,51 @@ export class ScheduledBlocksService {
       );
     });
 
-    if (hasOverlap) {
-      throw new BadRequestException('Block overlaps with existing block');
+    if (overlappingBlock) {
+      this.logger.warn(
+        `Overlap detected: New block ${dto.start_time}-${dto.end_time} overlaps with existing ${overlappingBlock.start_time}-${overlappingBlock.end_time} (${overlappingBlock.title})`
+      );
+      throw new BadRequestException(
+        `Block overlaps with existing block "${overlappingBlock.title}" (${overlappingBlock.start_time}-${overlappingBlock.end_time})`
+      );
+    }
+    
+    // ALSO check blocks from PREVIOUS day that might cross midnight into this day
+    const prevDate = new Date(dto.date);
+    prevDate.setDate(prevDate.getDate() - 1);
+    const prevDateStr = prevDate.toISOString().split('T')[0];
+    const prevDayBlocks = await this.findByDate(userId, prevDateStr);
+    
+    const prevDayOverlap = prevDayBlocks.find((block: any) => {
+      // Only check blocks that cross midnight
+      const crossesMidnight = this.detectCrossesMidnight(block.start_time, block.end_time);
+      if (!crossesMidnight) return false;
+      
+      // Block from previous day crosses midnight - check if new block overlaps with the "morning portion"
+      // If prev block is 23:00-05:00, it occupies 00:00-05:00 on dto.date
+      const timeToMinutes = (time: string) => {
+        const [h, m] = time.split(':').map(Number);
+        return h * 60 + m;
+      };
+      
+      const newStart = timeToMinutes(dto.start_time);
+      const newEnd = timeToMinutes(dto.end_time);
+      const prevEnd = timeToMinutes(block.end_time);
+      
+      // New block overlaps if it starts before the prev block ends (on next day)
+      // Example: prev block 23:00-05:00 occupies 00:00-05:00 on next day
+      // New block 00:00-00:21 overlaps because 00:00 < 05:00
+      // New block 05:00-06:00 does NOT overlap because 05:00 >= 05:00
+      return newStart < prevEnd;
+    });
+    
+    if (prevDayOverlap) {
+      this.logger.warn(
+        `Overlap with previous day's midnight-crossing block: New ${dto.start_time}-${dto.end_time} overlaps with ${prevDayOverlap.title} from ${prevDateStr} (${prevDayOverlap.start_time}-${prevDayOverlap.end_time})`
+      );
+      throw new BadRequestException(
+        `Block overlaps with "${prevDayOverlap.title}" from previous day (${prevDayOverlap.start_time}-${prevDayOverlap.end_time})`
+      );
     }
 
     // Convert priority string to number for database

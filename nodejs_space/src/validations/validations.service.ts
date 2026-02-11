@@ -80,7 +80,7 @@ export class ValidationsService {
       .from('block_validations')
       .select(`
         id,
-        block_id,
+        scheduled_block_id,
         status,
         scheduled_block:scheduled_blocks!inner(
           id,
