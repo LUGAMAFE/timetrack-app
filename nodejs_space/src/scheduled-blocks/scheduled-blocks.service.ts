@@ -104,9 +104,32 @@ export class ScheduledBlocksService {
   }
 
   async create(userId: string, dto: CreateBlockDto) {
-    // Validate no overlapping blocks on SAME date
+    const timeToMinutes = (time: string) => {
+      const [h, m] = time.split(':').map(Number);
+      return h * 60 + m;
+    };
+    
+    // Validate no overlapping blocks on SAME date (excluding midnight-crossing blocks)
     const existing = await this.findByDate(userId, dto.date);
     const overlappingBlock = existing.find((block: any) => {
+      const blockCrossesMidnight = this.detectCrossesMidnight(block.start_time, block.end_time);
+      
+      // CRITICAL: If the existing block crosses midnight, it occupies:
+      // - On dto.date: start_time -> 23:59
+      // - On next day: 00:00 -> end_time
+      // So we only check overlap with the "same day portion"
+      if (blockCrossesMidnight) {
+        // Existing block only occupies start_time -> 23:59 on dto.date
+        const newStart = timeToMinutes(dto.start_time);
+        const newEnd = timeToMinutes(dto.end_time);
+        const blockStart = timeToMinutes(block.start_time);
+        // End is 23:59 on same day
+        const blockEnd = 23 * 60 + 59;
+        
+        return newStart < blockEnd && newEnd > blockStart;
+      }
+      
+      // Normal overlap check for non-midnight-crossing blocks
       return this.timesOverlap(
         dto.start_time,
         dto.end_time,
@@ -136,12 +159,7 @@ export class ScheduledBlocksService {
       if (!crossesMidnight) return false;
       
       // Block from previous day crosses midnight - check if new block overlaps with the "morning portion"
-      // If prev block is 23:00-05:00, it occupies 00:00-05:00 on dto.date
-      const timeToMinutes = (time: string) => {
-        const [h, m] = time.split(':').map(Number);
-        return h * 60 + m;
-      };
-      
+      // If prev block is 23:00-05:00 on prevDate, it occupies 00:00-05:00 on dto.date
       const newStart = timeToMinutes(dto.start_time);
       const newEnd = timeToMinutes(dto.end_time);
       const prevEnd = timeToMinutes(block.end_time);
