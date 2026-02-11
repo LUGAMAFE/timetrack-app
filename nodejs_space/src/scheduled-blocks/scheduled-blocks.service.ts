@@ -45,13 +45,20 @@ export class ScheduledBlocksService {
       ? crosses_midnight 
       : (start_time && end_time ? this.detectCrossesMidnight(start_time, end_time) : false);
     
-    return {
+    const prepared: any = {
       ...rest,
       ...(start_time && { start_time }),
       ...(end_time && { end_time }),
-      crosses_midnight: crossesMidnight,
       priority: typeof priority === 'string' ? this.convertPriorityToNumber(priority) : priority,
     };
+    
+    // Only add crosses_midnight if explicitly provided or detected
+    // This makes the code work even if the column doesn't exist in the DB yet
+    if (crossesMidnight) {
+      prepared.crosses_midnight = crossesMidnight;
+    }
+    
+    return prepared;
   }
 
   async findByDate(userId: string, date: string) {

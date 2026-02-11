@@ -21,9 +21,22 @@ const convertPriorityToString = (priority: any): 'low' | 'medium' | 'high' | 'cr
 };
 
 const normalizeBlock = (block: any): ScheduledBlock => {
+  // Auto-detect crosses_midnight if not provided by backend
+  const startTime = block?.start_time ?? '';
+  const endTime = block?.end_time ?? '';
+  const timeToMinutes = (time: string) => {
+    const [h, m] = time.split(':').map(Number);
+    return (h ?? 0) * 60 + (m ?? 0);
+  };
+  
+  const crossesMidnight = block?.crosses_midnight !== undefined
+    ? block.crosses_midnight
+    : timeToMinutes(endTime) < timeToMinutes(startTime);
+
   return {
     ...block,
     priority: convertPriorityToString(block?.priority),
+    crosses_midnight: crossesMidnight,
   };
 };
 

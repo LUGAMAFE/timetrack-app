@@ -131,38 +131,45 @@ export function DayTimeline({
     const prevDateStr = prevDate.toISOString().split('T')[0];
     
     const prevDayMidnightCrossers = (blocks ?? [])
-      .filter(b => 
-        b?.date === prevDateStr && 
-        (b?.crosses_midnight || timeToMinutes(b?.end_time ?? '') < timeToMinutes(b?.start_time ?? ''))
-      )
+      .filter(b => {
+        if (b?.date !== prevDateStr) return false;
+        const startMins = timeToMinutes(b?.start_time ?? '');
+        const endMins = timeToMinutes(b?.end_time ?? '');
+        // Crosses midnight if end_time < start_time OR crosses_midnight flag is true
+        const crosses = b?.crosses_midnight === true || endMins < startMins;
+        if (crosses) {
+          console.log(`[DayTimeline] Found midnight crosser from ${prevDateStr}:`, b?.title, `${b?.start_time}-${b?.end_time}`);
+        }
+        return crosses;
+      })
       .map(b => ({
         ...b,
         // Override times to show only the "next day" portion (00:00 to end_time)
         start_time: '00:00',
-        // Keep original end_time
-        id: `${b.id}_nextday`, // Unique ID for this split view
+        // Keep original end_time (this is the portion after midnight)
+        id: `${b.id}_continuation`, // Unique ID for this split view
         _isContinuation: true, // Mark as continuation
       }));
     
-    // For blocks on THIS day that cross midnight, split them
-    const splitBlocks = sameDay.flatMap(b => {
-      const crossesMidnight = b?.crosses_midnight || 
-        timeToMinutes(b?.end_time ?? '') < timeToMinutes(b?.start_time ?? '');
+    // For blocks on THIS day that cross midnight, only show until 23:59
+    const splitBlocks = sameDay.map(b => {
+      const startMins = timeToMinutes(b?.start_time ?? '');
+      const endMins = timeToMinutes(b?.end_time ?? '');
+      const crossesMidnight = b?.crosses_midnight === true || endMins < startMins;
       
       if (crossesMidnight) {
-        // Split into two blocks: today portion and tomorrow portion
-        return [
-          {
-            ...b,
-            // This day: start_time to 24:00
-            end_time: '23:59',
-            _isFirstPart: true,
-          }
-          // Note: The "next day" part will be shown when viewing the next day
-        ];
+        console.log(`[DayTimeline] Splitting block on ${date}:`, b?.title, `${b?.start_time}-${b?.end_time} -> ${b?.start_time}-23:59`);
+        // Only show this day's portion: start_time to 23:59
+        return {
+          ...b,
+          end_time: '23:59',
+          _isFirstPart: true,
+        };
       }
-      return [b];
+      return b;
     });
+    
+    console.log(`[DayTimeline] ${date}: same=${sameDay.length}, split=${splitBlocks.length}, prev=${prevDayMidnightCrossers.length}`);
     
     const allBlocksForThisView = [...splitBlocks, ...prevDayMidnightCrossers];
     return positionBlocks(allBlocksForThisView as ScheduledBlock[], startHour);
@@ -194,7 +201,7 @@ export function DayTimeline({
   return (
     <ScrollView 
       style={styles.container}
-      contentContainerStyle={[styles.contentContainer, { height: timelineHeight + 40 }]}
+      contentContainerStyle={[styles.contentContainer, { minHeight: timelineHeight + 40 }]}
       showsVerticalScrollIndicator={true}
     >
       <View style={[styles.timeline, { height: timelineHeight }]}>
