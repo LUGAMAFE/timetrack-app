@@ -173,6 +173,7 @@ export function DayTimeline({
   const [hourHeight, setHourHeight] = useState(DEFAULT_HOUR_HEIGHT);
   const baseHeight = useRef(DEFAULT_HOUR_HEIGHT);
   const scrollViewRef = useRef<ScrollView>(null);
+  const [isZooming, setIsZooming] = useState(false);
   
   const hours = useMemo(() => {
     const result = [];
@@ -182,23 +183,34 @@ export function DayTimeline({
     return result;
   }, [startHour, endHour]);
 
-  // Prevent scroll when zooming on web
+  // Block scroll completely during zoom on web
   useEffect(() => {
-    if (Platform.OS !== 'web') return;
+    if (Platform.OS !== 'web' || !isZooming) return;
     
-    const preventZoomScroll = (e: WheelEvent) => {
-      if (e.ctrlKey || e.metaKey) {
-        e.preventDefault();
-      }
+    const preventScroll = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+      return false;
     };
     
-    // Add listener with passive: false to allow preventDefault
-    document.addEventListener('wheel', preventZoomScroll, { passive: false });
+    // Block all scroll events
+    const scrollView = scrollViewRef.current;
+    const scrollElement = scrollView?.getScrollableNode?.();
+    
+    if (scrollElement) {
+      scrollElement.addEventListener('scroll', preventScroll, { passive: false });
+      scrollElement.addEventListener('wheel', preventScroll, { passive: false });
+      scrollElement.addEventListener('touchmove', preventScroll, { passive: false });
+    }
     
     return () => {
-      document.removeEventListener('wheel', preventZoomScroll);
+      if (scrollElement) {
+        scrollElement.removeEventListener('scroll', preventScroll);
+        scrollElement.removeEventListener('wheel', preventScroll);
+        scrollElement.removeEventListener('touchmove', preventScroll);
+      }
     };
-  }, []);
+  }, [isZooming]);
 
   // Update hour height with clamping
   const updateHourHeight = (newHeight: number) => {
@@ -305,14 +317,20 @@ export function DayTimeline({
   // For web: use scroll wheel for zoom
   const handleWheel = (event: any) => {
     if (event.ctrlKey || event.metaKey) {
-      // Prevent both default zoom behavior AND scrolling
+      // CRITICAL: Block ALL scroll behavior during zoom
       event.preventDefault();
       event.stopPropagation();
+      event.stopImmediatePropagation();
+      
+      // Disable scrolling during zoom
+      setIsZooming(true);
       
       const delta = event.deltaY > 0 ? -5 : 5;
       updateHourHeight(hourHeight + delta);
       
-      // Return false to ensure no scroll happens
+      // Re-enable scrolling after a short delay
+      setTimeout(() => setIsZooming(false), 100);
+      
       return false;
     }
   };
@@ -339,10 +357,13 @@ export function DayTimeline({
         <Animated.View style={styles.gestureContainer}>
           <ScrollView 
             ref={scrollViewRef}
-            style={styles.scrollView}
+            style={[
+              styles.scrollView,
+              isZooming && Platform.OS === 'web' && { overflow: 'hidden' as any }
+            ]}
             contentContainerStyle={[styles.contentContainer, { minHeight: timelineHeight + 40 }]}
             showsVerticalScrollIndicator={true}
-            scrollEnabled={true}
+            scrollEnabled={!isZooming}
             // @ts-ignore - web only
             onWheel={Platform.OS === 'web' ? handleWheel : undefined}
           >
