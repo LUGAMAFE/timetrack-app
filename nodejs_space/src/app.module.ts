@@ -6,6 +6,12 @@ import { CategoriesModule } from './categories/categories.module';
 import { TimeEntriesModule } from './time-entries/time-entries.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { StreaksModule } from './streaks/streaks.module';
+import { ScheduledBlocksModule } from './scheduled-blocks/scheduled-blocks.module';
+import { ValidationsModule } from './validations/validations.module';
+import { GoalsModule } from './goals/goals.module';
+import { TemplatesModule } from './templates/templates.module';
+import { RulesModule } from './rules/rules.module';
+import { AiModule } from './ai/ai.module';
 
 @Module({
   imports: [
@@ -16,6 +22,12 @@ import { StreaksModule } from './streaks/streaks.module';
     TimeEntriesModule,
     DashboardModule,
     StreaksModule,
+    ScheduledBlocksModule,
+    ValidationsModule,
+    GoalsModule,
+    TemplatesModule,
+    RulesModule,
+    AiModule,
   ],
 })
 export class AppModule {}
