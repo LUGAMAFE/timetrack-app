@@ -95,6 +95,9 @@ export function TimeBlockEditorModal({
   const handleSave = async () => {
     if (!validateForm()) return;
 
+    // Detect if block crosses midnight
+    const crossesMidnight = startTime >= endTime;
+
     const data: CreateScheduledBlockDto = {
       category_id: selectedCategory?.id ?? '',
       title: title.trim(),
@@ -104,6 +107,7 @@ export function TimeBlockEditorModal({
       priority,
       is_flexible: isFlexible,
       notes: notes.trim() || undefined,
+      crosses_midnight: crossesMidnight,
     };
 
     let success = false;

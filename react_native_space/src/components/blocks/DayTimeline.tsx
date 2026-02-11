@@ -122,8 +122,50 @@ export function DayTimeline({
   }, [startHour, endHour]);
 
   const positionedBlocks = useMemo(() => {
-    const filtered = (blocks ?? []).filter(b => b?.date === date);
-    return positionBlocks(filtered, startHour);
+    // Filter blocks for this specific date
+    const sameDay = (blocks ?? []).filter(b => b?.date === date);
+    
+    // Also check for blocks from the PREVIOUS day that cross midnight
+    const prevDate = new Date(date);
+    prevDate.setDate(prevDate.getDate() - 1);
+    const prevDateStr = prevDate.toISOString().split('T')[0];
+    
+    const prevDayMidnightCrossers = (blocks ?? [])
+      .filter(b => 
+        b?.date === prevDateStr && 
+        (b?.crosses_midnight || timeToMinutes(b?.end_time ?? '') < timeToMinutes(b?.start_time ?? ''))
+      )
+      .map(b => ({
+        ...b,
+        // Override times to show only the "next day" portion (00:00 to end_time)
+        start_time: '00:00',
+        // Keep original end_time
+        id: `${b.id}_nextday`, // Unique ID for this split view
+        _isContinuation: true, // Mark as continuation
+      }));
+    
+    // For blocks on THIS day that cross midnight, split them
+    const splitBlocks = sameDay.flatMap(b => {
+      const crossesMidnight = b?.crosses_midnight || 
+        timeToMinutes(b?.end_time ?? '') < timeToMinutes(b?.start_time ?? '');
+      
+      if (crossesMidnight) {
+        // Split into two blocks: today portion and tomorrow portion
+        return [
+          {
+            ...b,
+            // This day: start_time to 24:00
+            end_time: '23:59',
+            _isFirstPart: true,
+          }
+          // Note: The "next day" part will be shown when viewing the next day
+        ];
+      }
+      return [b];
+    });
+    
+    const allBlocksForThisView = [...splitBlocks, ...prevDayMidnightCrossers];
+    return positionBlocks(allBlocksForThisView as ScheduledBlock[], startHour);
   }, [blocks, date, startHour]);
 
   const currentHour = new Date().getHours();
@@ -206,11 +248,19 @@ export function DayTimeline({
                     left: blockLeft,
                     backgroundColor: block?.category?.color ?? '#6200EE',
                     borderLeftColor: block?.category?.color ?? '#6200EE',
-                  }
+                  },
+                  // @ts-ignore - Custom property for split blocks
+                  block._isContinuation && styles.continuationBlock,
+                  // @ts-ignore
+                  block._isFirstPart && styles.firstPartBlock,
                 ]}
                 activeOpacity={0.8}
               >
                 <View style={styles.blockContent}>
+                  {/* @ts-ignore */}
+                  {block._isContinuation && (
+                    <Text style={styles.continuationLabel}>↓ Continued</Text>
+                  )}
                   <Text style={styles.blockTime} numberOfLines={1}>
                     {block?.start_time} - {block?.end_time}
                   </Text>
@@ -221,6 +271,10 @@ export function DayTimeline({
                     <Text style={styles.blockNotes} numberOfLines={2}>
                       {block.notes}
                     </Text>
+                  )}
+                  {/* @ts-ignore */}
+                  {block._isFirstPart && (
+                    <Text style={styles.continuesLabel}>Continues tomorrow ↓</Text>
                   )}
                 </View>
               </TouchableOpacity>
@@ -349,5 +403,35 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     opacity: 0.8,
     marginTop: 4,
+  },
+  continuationBlock: {
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    borderTopWidth: 2,
+    borderTopColor: 'rgba(255, 255, 255, 0.3)',
+    borderStyle: 'dashed',
+  },
+  firstPartBlock: {
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    borderBottomWidth: 2,
+    borderBottomColor: 'rgba(255, 255, 255, 0.3)',
+    borderStyle: 'dashed',
+  },
+  continuationLabel: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    opacity: 0.7,
+    marginBottom: 2,
+    textTransform: 'uppercase',
+  },
+  continuesLabel: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    opacity: 0.7,
+    marginTop: 4,
+    textAlign: 'center',
   },
 });

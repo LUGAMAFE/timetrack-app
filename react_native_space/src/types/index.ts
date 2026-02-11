@@ -58,6 +58,7 @@ export interface CreateScheduledBlockDto {
   is_flexible?: boolean;
   priority?: 'low' | 'medium' | 'high' | 'critical';
   notes?: string;
+  crosses_midnight?: boolean; // Auto-calculated by backend if not provided
 }
 
 export interface UpdateScheduledBlockDto extends Partial<CreateScheduledBlockDto> {}

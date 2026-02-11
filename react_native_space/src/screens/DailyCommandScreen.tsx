@@ -44,8 +44,14 @@ export function DailyCommandScreen() {
   );
 
   const loadData = async () => {
+    // Also fetch blocks from previous day to show midnight crossers
+    const prevDate = new Date(selectedDate);
+    prevDate.setDate(prevDate.getDate() - 1);
+    const prevDateStr = prevDate.toISOString().split('T')[0];
+    
     await Promise.all([
       fetchBlocksForDate(selectedDate),
+      fetchBlocksForDate(prevDateStr), // Load previous day for midnight crossing blocks
       fetchPendingBlocks(),
       fetchViolations(),
       fetchStreak(),
