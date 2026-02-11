@@ -284,31 +284,58 @@ export function DayTimeline({
   // Zoom hint visibility
   const zoomPercent = Math.round((hourHeight / DEFAULT_HOUR_HEIGHT) * 100);
 
-  // For web: use scroll wheel for zoom (simplified)
-  const handleWheel = (event: any) => {
-    if (event.ctrlKey || event.metaKey) {
-      event.preventDefault();
-      const delta = event.deltaY > 0 ? -5 : 5;
-      updateHourHeight(hourHeight + delta);
-    }
-  };
-
   return (
     <GestureHandlerRootView style={styles.container}>
-      {/* Zoom indicator - shows current zoom level */}
-      <View style={[styles.zoomIndicator, { backgroundColor: isDarkMode ? '#2A2A2A' : '#F5F5F5' }]}>
-        <Text style={[styles.zoomHint, { color: isDarkMode ? '#888' : '#666' }]}>
-          {Platform.OS === 'web' ? '⌘/Ctrl + Scroll to zoom' : 'Pinch to zoom'} • {zoomPercent}%
-        </Text>
-        {zoomPercent !== 100 && (
-          <TouchableOpacity 
-            onPress={() => setHourHeight(DEFAULT_HOUR_HEIGHT)}
-            style={styles.resetButton}
-          >
-            <Text style={styles.resetText}>Reset</Text>
-          </TouchableOpacity>
-        )}
+      {/* Floating zoom controls - Google Maps style */}
+      <View style={[styles.floatingZoomControls, { backgroundColor: isDarkMode ? '#2A2A2A' : '#FFFFFF' }]}>
+        <TouchableOpacity
+          onPress={() => {
+            const newHeight = Math.min(MAX_HOUR_HEIGHT, hourHeight + 10);
+            updateHourHeight(newHeight);
+          }}
+          disabled={hourHeight >= MAX_HOUR_HEIGHT}
+          style={[
+            styles.floatingZoomButton,
+            styles.floatingZoomButtonTop,
+            hourHeight >= MAX_HOUR_HEIGHT && styles.floatingZoomButtonDisabled
+          ]}
+        >
+          <Text style={[
+            styles.floatingZoomIcon,
+            { color: hourHeight >= MAX_HOUR_HEIGHT ? '#888' : (isDarkMode ? '#FFF' : '#000') }
+          ]}>+</Text>
+        </TouchableOpacity>
+        
+        <View style={styles.floatingZoomDivider} />
+        
+        <TouchableOpacity
+          onPress={() => {
+            const newHeight = Math.max(MIN_HOUR_HEIGHT, hourHeight - 10);
+            updateHourHeight(newHeight);
+          }}
+          disabled={hourHeight <= MIN_HOUR_HEIGHT}
+          style={[
+            styles.floatingZoomButton,
+            styles.floatingZoomButtonBottom,
+            hourHeight <= MIN_HOUR_HEIGHT && styles.floatingZoomButtonDisabled
+          ]}
+        >
+          <Text style={[
+            styles.floatingZoomIcon,
+            { color: hourHeight <= MIN_HOUR_HEIGHT ? '#888' : (isDarkMode ? '#FFF' : '#000') }
+          ]}>−</Text>
+        </TouchableOpacity>
       </View>
+
+      {/* Zoom percentage indicator */}
+      {zoomPercent !== 100 && (
+        <View style={[styles.zoomPercentBadge, { backgroundColor: isDarkMode ? '#6200EE' : '#6200EE' }]}>
+          <Text style={styles.zoomPercentText}>{zoomPercent}%</Text>
+          {Platform.OS !== 'web' && (
+            <Text style={styles.zoomHintText}>Pinch to zoom</Text>
+          )}
+        </View>
+      )}
 
       {/* Timeline with gesture handler */}
       <GestureDetector gesture={composedGesture}>
@@ -318,8 +345,6 @@ export function DayTimeline({
             style={styles.scrollView}
             contentContainerStyle={[styles.contentContainer, { minHeight: timelineHeight + 40 }]}
             showsVerticalScrollIndicator={true}
-            // @ts-ignore - web only
-            onWheel={Platform.OS === 'web' ? handleWheel : undefined}
           >
             <View style={[styles.timeline, { height: timelineHeight }]}>
           {/* Hour lines */}
@@ -447,30 +472,72 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  zoomIndicator: {
-    flexDirection: 'row',
+  floatingZoomControls: {
+    position: 'absolute',
+    right: 16,
+    top: '50%',
+    marginTop: -40,
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    zIndex: 1000,
+    overflow: 'hidden',
+  },
+  floatingZoomButton: {
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
   },
-  zoomHint: {
-    fontSize: 11,
-    fontWeight: '500',
+  floatingZoomButtonTop: {
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
   },
-  resetButton: {
-    marginLeft: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    backgroundColor: '#6200EE',
-    borderRadius: 12,
+  floatingZoomButtonBottom: {
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 8,
   },
-  resetText: {
-    fontSize: 10,
+  floatingZoomButtonDisabled: {
+    opacity: 0.3,
+  },
+  floatingZoomIcon: {
+    fontSize: 24,
     fontWeight: '600',
+  },
+  floatingZoomDivider: {
+    height: 1,
+    backgroundColor: '#E0E0E0',
+  },
+  zoomPercentBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+    zIndex: 999,
+  },
+  zoomPercentText: {
+    fontSize: 12,
+    fontWeight: '700',
     color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  zoomHintText: {
+    fontSize: 9,
+    fontWeight: '500',
+    color: '#FFFFFF',
+    opacity: 0.8,
+    marginTop: 2,
+    textAlign: 'center',
   },
   gestureContainer: {
     flex: 1,
