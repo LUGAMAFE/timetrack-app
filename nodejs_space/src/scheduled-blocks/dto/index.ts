@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean, IsNumber, Min, Max } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsIn } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateBlockDto {
@@ -33,12 +33,11 @@ export class CreateBlockDto {
   @IsBoolean()
   is_flexible?: boolean;
 
-  @ApiPropertyOptional({ default: 5, minimum: 1, maximum: 10 })
+  @ApiPropertyOptional({ default: 'medium', enum: ['low', 'medium', 'high', 'critical'] })
   @IsOptional()
-  @IsNumber()
-  @Min(1)
-  @Max(10)
-  priority?: number;
+  @IsString()
+  @IsIn(['low', 'medium', 'high', 'critical'])
+  priority?: string;
 }
 
 export class UpdateBlockDto {
@@ -77,8 +76,9 @@ export class UpdateBlockDto {
   @IsBoolean()
   is_flexible?: boolean;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ enum: ['low', 'medium', 'high', 'critical'] })
   @IsOptional()
-  @IsNumber()
-  priority?: number;
+  @IsString()
+  @IsIn(['low', 'medium', 'high', 'critical'])
+  priority?: string;
 }

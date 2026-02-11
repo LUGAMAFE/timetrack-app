@@ -44,8 +44,9 @@ export const useGoalStore = create<GoalState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const params: any = {};
-      if (year) params.year = year;
-      if (month) params.month = month;
+      // Only add valid number parameters
+      if (year !== undefined && !isNaN(year) && year > 0) params.year = year;
+      if (month !== undefined && !isNaN(month) && month > 0) params.month = month;
       
       const response = await api.get('/goals/monthly', { params });
       set({ monthlyGoals: response?.data ?? [], isLoading: false });
@@ -59,8 +60,9 @@ export const useGoalStore = create<GoalState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const params: any = {};
-      if (year) params.year = year;
-      if (week) params.week = week;
+      // Only add valid number parameters
+      if (year !== undefined && !isNaN(year) && year > 0) params.year = year;
+      if (week !== undefined && !isNaN(week) && week > 0) params.week = week;
       
       const response = await api.get('/goals/weekly', { params });
       set({ weeklyGoals: response?.data ?? [], isLoading: false });
@@ -153,8 +155,9 @@ export const useGoalStore = create<GoalState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const params: any = {};
-      if (year) params.year = year;
-      if (month) params.month = month;
+      // Only add valid number parameters
+      if (year !== undefined && !isNaN(year) && year > 0) params.year = year;
+      if (month !== undefined && !isNaN(month) && month > 0) params.month = month;
       
       const response = await api.get('/goals/monthly/progress', { params });
       set({ monthlyProgress: response?.data ?? [], isLoading: false });
@@ -168,8 +171,9 @@ export const useGoalStore = create<GoalState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const params: any = {};
-      if (year) params.year = year;
-      if (week) params.week = week;
+      // Only add valid number parameters
+      if (year !== undefined && !isNaN(year) && year > 0) params.year = year;
+      if (week !== undefined && !isNaN(week) && week > 0) params.week = week;
       
       const response = await api.get('/goals/weekly/progress', { params });
       set({ weeklyProgress: response?.data ?? [], isLoading: false });

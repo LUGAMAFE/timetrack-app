@@ -73,6 +73,13 @@ export const useAIStore = create<AIState>((set, get) => ({
   analyzeFeasibility: async (weekStartDate) => {
     set({ isLoading: true, error: null });
     try {
+      // Validate date format
+      if (!weekStartDate || typeof weekStartDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(weekStartDate)) {
+        console.error('[AIStore] Invalid date format:', weekStartDate);
+        set({ error: 'Invalid date format. Expected YYYY-MM-DD', isLoading: false });
+        return null;
+      }
+      
       const response = await api.post('/ai/analyze/feasibility', { week_start_date: weekStartDate });
       const analysis = response?.data;
       set({ lastAnalysis: analysis ?? null, isLoading: false });

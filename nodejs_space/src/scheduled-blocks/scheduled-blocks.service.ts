@@ -9,7 +9,7 @@ export interface CreateBlockDto {
   title?: string;
   notes?: string;
   is_flexible?: boolean;
-  priority?: number;
+  priority?: string; // 'low' | 'medium' | 'high' | 'critical'
 }
 
 export interface UpdateBlockDto extends Partial<CreateBlockDto> {}
