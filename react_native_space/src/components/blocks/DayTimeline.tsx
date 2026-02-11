@@ -23,11 +23,15 @@ function timeToMinutes(time: string): number {
 }
 
 // Calcula la duración en minutos (maneja cruce de medianoche)
-function calculateDuration(startTime: string, endTime: string, crossesMidnight?: boolean): number {
+function calculateDuration(startTime: string, endTime: string, originalCrossesMidnight?: boolean): number {
   const startMinutes = timeToMinutes(startTime);
   const endMinutes = timeToMinutes(endTime);
   
-  if (crossesMidnight || endMinutes < startMinutes) {
+  // CRITICAL: After splitting, the times are normalized (23:00-23:59 or 00:00-05:00)
+  // So we MUST check actual time values, not the original flag
+  const actuallyNeedsMidnightCalc = endMinutes < startMinutes;
+  
+  if (actuallyNeedsMidnightCalc) {
     // Cruza medianoche: (24:00 - start) + end
     return (1440 - startMinutes) + endMinutes;
   }
@@ -47,11 +51,13 @@ function positionBlocks(blocks: ScheduledBlock[], startHour: number): Positioned
 
   const positioned: PositionedBlock[] = blocks.map(block => {
     const startMinutes = timeToMinutes(block?.start_time ?? '00:00');
+    
+    // DON'T pass crosses_midnight flag - let calculateDuration decide based on actual times
     const duration = calculateDuration(
       block?.start_time ?? '00:00', 
-      block?.end_time ?? '00:00',
-      block?.crosses_midnight
+      block?.end_time ?? '00:00'
     );
+    
     const top = ((startMinutes / 60) - startHour) * HOUR_HEIGHT;
     const height = Math.max((duration / 60) * HOUR_HEIGHT, 30); // Mínimo 30px
 
@@ -136,11 +142,7 @@ export function DayTimeline({
         const startMins = timeToMinutes(b?.start_time ?? '');
         const endMins = timeToMinutes(b?.end_time ?? '');
         // Crosses midnight if end_time < start_time OR crosses_midnight flag is true
-        const crosses = b?.crosses_midnight === true || endMins < startMins;
-        if (crosses) {
-          console.log(`[DayTimeline] Found midnight crosser from ${prevDateStr}:`, b?.title, `${b?.start_time}-${b?.end_time}`);
-        }
-        return crosses;
+        return b?.crosses_midnight === true || endMins < startMins;
       })
       .map(b => ({
         ...b,
@@ -158,7 +160,6 @@ export function DayTimeline({
       const crossesMidnight = b?.crosses_midnight === true || endMins < startMins;
       
       if (crossesMidnight) {
-        console.log(`[DayTimeline] Splitting block on ${date}:`, b?.title, `${b?.start_time}-${b?.end_time} -> ${b?.start_time}-23:59`);
         // Only show this day's portion: start_time to 23:59
         return {
           ...b,
@@ -168,8 +169,6 @@ export function DayTimeline({
       }
       return b;
     });
-    
-    console.log(`[DayTimeline] ${date}: same=${sameDay.length}, split=${splitBlocks.length}, prev=${prevDayMidnightCrossers.length}`);
     
     const allBlocksForThisView = [...splitBlocks, ...prevDayMidnightCrossers];
     return positionBlocks(allBlocksForThisView as ScheduledBlock[], startHour);

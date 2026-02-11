@@ -34,7 +34,14 @@ export function DailyCommandScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showViolationBanner, setShowViolationBanner] = useState(true);
 
-  const todayBlocks = blocks.filter(b => b?.date === selectedDate) ?? [];
+  // Include blocks from today AND previous day (for midnight-crossing blocks)
+  const prevDate = new Date(selectedDate);
+  prevDate.setDate(prevDate.getDate() - 1);
+  const prevDateStr = prevDate.toISOString().split('T')[0];
+  
+  const todayBlocks = blocks.filter(b => 
+    b?.date === selectedDate || b?.date === prevDateStr
+  ) ?? [];
   const pendingCount = pendingBlocks?.length ?? 0;
 
   useFocusEffect(
