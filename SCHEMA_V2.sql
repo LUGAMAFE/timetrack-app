@@ -83,27 +83,7 @@ CREATE TABLE IF NOT EXISTS scheduled_blocks (
 );
 
 -- =============================================
--- BLOCK VALIDATIONS
--- =============================================
-CREATE TABLE IF NOT EXISTS block_validations (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  scheduled_block_id UUID NOT NULL REFERENCES scheduled_blocks(id) ON DELETE CASCADE,
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  status VARCHAR(20) NOT NULL CHECK (status IN ('completed', 'partial', 'omitted', 'pending')),
-  actual_start_time TIME,
-  actual_end_time TIME,
-  actual_duration_minutes INTEGER,
-  completion_percentage INTEGER CHECK (completion_percentage >= 0 AND completion_percentage <= 100),
-  omission_reason_id UUID REFERENCES omission_reasons(id),
-  omission_notes TEXT,
-  validated_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(scheduled_block_id)
-);
-
--- =============================================
--- OMISSION REASONS
+-- OMISSION REASONS (must be before block_validations)
 -- =============================================
 CREATE TABLE IF NOT EXISTS omission_reasons (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -129,6 +109,26 @@ INSERT INTO omission_reasons (name, category, is_system_default) VALUES
   ('Changed priorities', 'rescheduled', true),
   ('Other', 'other', true)
 ON CONFLICT DO NOTHING;
+
+-- =============================================
+-- BLOCK VALIDATIONS
+-- =============================================
+CREATE TABLE IF NOT EXISTS block_validations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  scheduled_block_id UUID NOT NULL REFERENCES scheduled_blocks(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  status VARCHAR(20) NOT NULL CHECK (status IN ('completed', 'partial', 'omitted', 'pending')),
+  actual_start_time TIME,
+  actual_end_time TIME,
+  actual_duration_minutes INTEGER,
+  completion_percentage INTEGER CHECK (completion_percentage >= 0 AND completion_percentage <= 100),
+  omission_reason_id UUID REFERENCES omission_reasons(id),
+  omission_notes TEXT,
+  validated_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(scheduled_block_id)
+);
 
 -- =============================================
 -- REST RULES
