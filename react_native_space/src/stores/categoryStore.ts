@@ -24,7 +24,9 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const response = await api.get('/categories');
-      set({ categories: response?.data ?? [], isLoading: false });
+      // Backend returns { categories: [...] }
+      const categoriesArray = response?.data?.categories ?? [];
+      set({ categories: Array.isArray(categoriesArray) ? categoriesArray : [], isLoading: false });
     } catch (e: any) {
       console.error('[CategoryStore] fetchCategories error:', e?.message);
       set({ error: e?.response?.data?.message ?? 'Failed to fetch categories', isLoading: false });
@@ -43,7 +45,8 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
         monthly_limit_hours: data.monthly_limit_hours,
       };
       const response = await api.post('/categories', payload);
-      const newCategory = response?.data;
+      // Backend returns { category: {...} }
+      const newCategory = response?.data?.category;
       if (newCategory) {
         set((state) => ({ 
           categories: [...state.categories, newCategory], 
@@ -78,7 +81,8 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
       if (data.monthly_limit_hours !== undefined) payload.monthly_limit_hours = data.monthly_limit_hours;
       
       const response = await api.put(`/categories/${id}`, payload);
-      const updatedCategory = response?.data;
+      // Backend returns { category: {...} }
+      const updatedCategory = response?.data?.category;
       if (updatedCategory) {
         set((state) => ({
           categories: state.categories.map(c => c?.id === id ? updatedCategory : c),
