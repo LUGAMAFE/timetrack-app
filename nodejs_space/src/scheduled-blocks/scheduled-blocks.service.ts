@@ -10,6 +10,7 @@ export interface CreateBlockDto {
   notes?: string;
   is_flexible?: boolean;
   priority?: string; // 'low' | 'medium' | 'high' | 'critical'
+  crosses_midnight?: boolean; // Auto-calculated if not provided
 }
 
 export interface UpdateBlockDto extends Partial<CreateBlockDto> {}
@@ -31,10 +32,24 @@ export class ScheduledBlocksService {
     return priorityMap[priority.toLowerCase()] ?? 5;
   }
 
+  private detectCrossesMidnight(startTime: string, endTime: string): boolean {
+    // If end_time < start_time, it crosses midnight (e.g., 23:00 to 05:00)
+    return endTime < startTime;
+  }
+
   private prepareBlockData(dto: CreateBlockDto | UpdateBlockDto) {
-    const { priority, ...rest } = dto;
+    const { priority, start_time, end_time, crosses_midnight, ...rest } = dto;
+    
+    // Auto-detect if crosses midnight if not explicitly provided
+    const crossesMidnight = crosses_midnight !== undefined 
+      ? crosses_midnight 
+      : (start_time && end_time ? this.detectCrossesMidnight(start_time, end_time) : false);
+    
     return {
       ...rest,
+      ...(start_time && { start_time }),
+      ...(end_time && { end_time }),
+      crosses_midnight: crossesMidnight,
       priority: typeof priority === 'string' ? this.convertPriorityToNumber(priority) : priority,
     };
   }
@@ -264,6 +279,29 @@ export class ScheduledBlocksService {
   }
 
   private timesOverlap(start1: string, end1: string, start2: string, end2: string): boolean {
+    const crosses1 = this.detectCrossesMidnight(start1, end1);
+    const crosses2 = this.detectCrossesMidnight(start2, end2);
+
+    // Both blocks cross midnight
+    if (crosses1 && crosses2) {
+      // Both extend past midnight, they always overlap
+      return true;
+    }
+
+    // Only block 1 crosses midnight (e.g., 23:00-05:00)
+    if (crosses1) {
+      // Block 1 spans: [start1->24:00] and [00:00->end1]
+      // Check if block 2 overlaps either part
+      return start2 >= start1 || end2 <= end1;
+    }
+
+    // Only block 2 crosses midnight
+    if (crosses2) {
+      // Block 2 spans: [start2->24:00] and [00:00->end2]
+      return start1 >= start2 || end1 <= end2;
+    }
+
+    // Neither crosses midnight - normal comparison
     return start1 < end2 && end1 > start2;
   }
 

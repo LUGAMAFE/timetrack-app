@@ -87,10 +87,7 @@ export function TimeBlockEditorModal({
       setError('Please select a category');
       return false;
     }
-    if (startTime >= endTime) {
-      setError('End time must be after start time');
-      return false;
-    }
+    // Allow end_time < start_time for blocks that cross midnight (e.g., 23:00 to 05:00)
     setError('');
     return true;
   };

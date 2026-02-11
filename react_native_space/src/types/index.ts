@@ -39,6 +39,7 @@ export interface ScheduledBlock {
   end_time: string;   // HH:mm format
   is_flexible: boolean;
   priority: 'low' | 'medium' | 'high' | 'critical';
+  crosses_midnight?: boolean; // true if block spans past midnight (e.g., 23:00 to 05:00)
   notes?: string;
   recurrence_rule?: string;
   source_template_id?: string;

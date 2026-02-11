@@ -46,10 +46,7 @@ export const ManualEntryModal: React.FC<Props> = ({ visible, onClose, editEntry 
       Alert.alert('Error', 'Please select a category');
       return;
     }
-    if (endTime <= startTime) {
-      Alert.alert('Error', 'End time must be after start time');
-      return;
-    }
+    // Allow end_time <= start_time for blocks that cross midnight (e.g., sleep from 11 PM to 5 AM)
 
     const dateStr = date.toISOString().split('T')[0];
     const dto = {
