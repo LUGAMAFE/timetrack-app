@@ -26,8 +26,32 @@ import type { PlanStackParamList } from '../types';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const DAY_WIDTH = (SCREEN_WIDTH - 80) / 7;
+const HOUR_HEIGHT = 60; // Height per hour for proportional blocks
+const START_HOUR = 0; // 12 AM
+const END_HOUR = 24; // 12 AM next day
+
+type ViewMode = '7day' | '3day' | '1day';
 
 type NavigationProp = NativeStackNavigationProp<PlanStackParamList, 'WeeklyPlan'>;
+
+// Helper: Convert "HH:mm" to minutes since midnight
+function timeToMinutes(time: string): number {
+  const [hours, minutes] = time.split(':').map(Number);
+  return (hours ?? 0) * 60 + (minutes ?? 0);
+}
+
+// Helper: Calculate duration in minutes
+function calculateDuration(startTime: string, endTime: string): number {
+  let start = timeToMinutes(startTime);
+  let end = timeToMinutes(endTime);
+  
+  // Handle midnight crossing
+  if (end < start) {
+    end += 24 * 60;
+  }
+  
+  return end - start;
+}
 
 export function WeeklyPlanScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -48,11 +72,16 @@ export function WeeklyPlanScreen() {
   const [editorVisible, setEditorVisible] = useState(false);
   const [selectedBlock, setSelectedBlock] = useState<ScheduledBlock | null>(null);
   const [templateMenuVisible, setTemplateMenuVisible] = useState(false);
+  const [viewModeMenuVisible, setViewModeMenuVisible] = useState(false);
   const [applyDialogVisible, setApplyDialogVisible] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<WeeklyTemplate | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('7day');
 
   const weekStart = parseISO(weekStartDate);
-  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  
+  // Calculate days to show based on view mode
+  const daysToShow = viewMode === '7day' ? 7 : viewMode === '3day' ? 3 : 1;
+  const weekDays = Array.from({ length: daysToShow }, (_, i) => addDays(weekStart, i));
 
   useFocusEffect(
     useCallback(() => {
@@ -142,6 +171,41 @@ export function WeeklyPlanScreen() {
         />
         <Appbar.Action icon="chevron-right" onPress={handleNextWeek} />
         <Appbar.Action icon="calendar-today" onPress={handleToday} />
+        <Menu
+          visible={viewModeMenuVisible}
+          onDismiss={() => setViewModeMenuVisible(false)}
+          anchor={
+            <Appbar.Action
+              icon={viewMode === '7day' ? 'view-week' : viewMode === '3day' ? 'view-day' : 'calendar-blank'}
+              onPress={() => setViewModeMenuVisible(true)}
+            />
+          }
+        >
+          <Menu.Item
+            onPress={() => {
+              setViewMode('7day');
+              setViewModeMenuVisible(false);
+            }}
+            title="Week (7 days)"
+            leadingIcon="view-week"
+          />
+          <Menu.Item
+            onPress={() => {
+              setViewMode('3day');
+              setViewModeMenuVisible(false);
+            }}
+            title="3 Days"
+            leadingIcon="view-day"
+          />
+          <Menu.Item
+            onPress={() => {
+              setViewMode('1day');
+              setViewModeMenuVisible(false);
+            }}
+            title="Day"
+            leadingIcon="calendar-blank"
+          />
+        </Menu>
       </Appbar.Header>
 
       <ScrollView
@@ -183,69 +247,96 @@ export function WeeklyPlanScreen() {
           ))}
         </View>
 
-        {/* Week Grid */}
-        <View style={styles.weekGrid}>
-          {weekDays.map((day) => {
-            const dayBlocks = getBlocksForDay(day);
-            return (
-              <View
-                key={day.toISOString()}
-                style={[
-                  styles.dayColumn,
-                  { borderColor: isDarkMode ? '#333333' : '#E0E0E0' },
-                ]}
-              >
-                {dayBlocks.length === 0 ? (
-                  <TouchableOpacity
-                    style={styles.emptyDay}
-                    onPress={() => handleDayPress(day)}
-                  >
-                    <Ionicons
-                      name="add-circle-outline"
-                      size={24}
-                      color={isDarkMode ? '#666666' : '#AAAAAA'}
-                    />
-                  </TouchableOpacity>
-                ) : (
-                  dayBlocks.slice(0, 5).map((block) => (
-                    <TouchableOpacity
-                      key={block?.id}
-                      style={[
-                        styles.miniBlock,
-                        { backgroundColor: (block?.category?.color ?? '#6200EE') + '30' },
-                      ]}
-                      onPress={() => handleBlockPress(block)}
-                    >
+        {/* Week Grid with Proportional Blocks */}
+        <ScrollView horizontal style={styles.weekGridScrollView} showsHorizontalScrollIndicator={false}>
+          <View style={styles.weekGrid}>
+            {weekDays.map((day) => {
+              const dayBlocks = getBlocksForDay(day);
+              const totalHeight = (END_HOUR - START_HOUR) * HOUR_HEIGHT;
+              
+              return (
+                <View
+                  key={day.toISOString()}
+                  style={[
+                    styles.dayColumn,
+                    { 
+                      borderColor: isDarkMode ? '#333333' : '#E0E0E0',
+                      width: viewMode === '1day' ? SCREEN_WIDTH - 16 : viewMode === '3day' ? (SCREEN_WIDTH - 32) / 3 : undefined
+                    },
+                  ]}
+                >
+                  {/* Mini Timeline Background */}
+                  <View style={[styles.miniTimeline, { height: totalHeight }]}>
+                    {Array.from({ length: END_HOUR - START_HOUR }, (_, i) => (
                       <View
+                        key={i}
                         style={[
-                          styles.miniBlockIndicator,
-                          { backgroundColor: block?.category?.color ?? '#6200EE' },
+                          styles.hourLine,
+                          { 
+                            top: i * HOUR_HEIGHT,
+                            borderTopColor: isDarkMode ? '#2A2A2A' : '#F0F0F0'
+                          }
                         ]}
                       />
-                      <Text
-                        style={[styles.miniBlockTime, { color: isDarkMode ? '#BBBBBB' : '#666666' }]}
-                        numberOfLines={1}
-                      >
-                        {block?.start_time ?? ''}
-                      </Text>
-                      <Text
-                        style={[styles.miniBlockTitle, { color: isDarkMode ? '#FFFFFF' : '#000000' }]}
-                        numberOfLines={1}
-                      >
-                        {block?.title ?? ''}
-                      </Text>
+                    ))}
+                  </View>
+                  
+                  {/* Proportional Blocks */}
+                  {dayBlocks.length === 0 ? (
+                    <TouchableOpacity
+                      style={[styles.emptyDay, { height: totalHeight }]}
+                      onPress={() => handleDayPress(day)}
+                    >
+                      <Ionicons
+                        name="add-circle-outline"
+                        size={32}
+                        color={isDarkMode ? '#666666' : '#AAAAAA'}
+                      />
                     </TouchableOpacity>
-                  ))
-                )}
-                {dayBlocks.length > 5 && (
-                  <Text style={[styles.moreText, { color: isDarkMode ? '#BBBBBB' : '#666666' }]}>
-                    +{dayBlocks.length - 5} more
-                  </Text>
-                )}
-              </View>
-            );
-          })}
-        </View>
+                  ) : (
+                    dayBlocks.map((block) => {
+                      const startMinutes = timeToMinutes(block?.start_time ?? '00:00');
+                      const duration = calculateDuration(block?.start_time ?? '00:00', block?.end_time ?? '00:00');
+                      const top = (startMinutes / 60) * HOUR_HEIGHT;
+                      const height = (duration / 60) * HOUR_HEIGHT;
+                      
+                      return (
+                        <TouchableOpacity
+                          key={block?.id}
+                          style={[
+                            styles.proportionalBlock,
+                            {
+                              backgroundColor: (block?.category?.color ?? '#6200EE') + '40',
+                              borderLeftColor: block?.category?.color ?? '#6200EE',
+                              top,
+                              height: Math.max(height, 20), // Minimum height
+                            },
+                          ]}
+                          onPress={() => handleBlockPress(block)}
+                        >
+                          <Text
+                            style={[styles.blockTime, { color: isDarkMode ? '#BBBBBB' : '#666666' }]}
+                            numberOfLines={1}
+                          >
+                            {block?.start_time ?? ''}
+                          </Text>
+                          {height > 30 && (
+                            <Text
+                              style={[styles.blockTitle, { color: isDarkMode ? '#FFFFFF' : '#000000' }]}
+                              numberOfLines={height > 50 ? 2 : 1}
+                            >
+                              {block?.title ?? ''}
+                            </Text>
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })
+                  )}
+                </View>
+              );
+            })}
+          </View>
+        </ScrollView>
 
         {/* Weekly Progress */}
         {(weeklyProgress?.length ?? 0) > 0 && (
@@ -390,40 +481,55 @@ const styles = StyleSheet.create({
   todayText: {
     color: '#6200EE',
   },
+  weekGridScrollView: {
+    paddingHorizontal: 8,
+  },
   weekGrid: {
     flexDirection: 'row',
-    paddingHorizontal: 8,
-    minHeight: 300,
+    minHeight: 400,
   },
   dayColumn: {
     flex: 1,
     borderRightWidth: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 2,
+    paddingHorizontal: 4,
+    position: 'relative',
+    minWidth: 80,
+  },
+  miniTimeline: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+  },
+  hourLine: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 1,
+    borderTopWidth: 1,
   },
   emptyDay: {
-    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    minHeight: 100,
+    zIndex: 1,
   },
-  miniBlock: {
-    marginVertical: 2,
-    padding: 4,
+  proportionalBlock: {
+    position: 'absolute',
+    left: 4,
+    right: 4,
     borderRadius: 6,
+    padding: 6,
+    borderLeftWidth: 4,
+    zIndex: 10,
   },
-  miniBlockIndicator: {
-    width: '100%',
-    height: 3,
-    borderRadius: 2,
-    marginBottom: 2,
-  },
-  miniBlockTime: {
+  blockTime: {
     fontSize: 9,
+    fontWeight: '600',
   },
-  miniBlockTitle: {
+  blockTitle: {
     fontSize: 10,
     fontWeight: '500',
+    marginTop: 2,
   },
   moreText: {
     fontSize: 10,
