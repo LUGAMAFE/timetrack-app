@@ -19,7 +19,7 @@ interface ValidationState {
   fetchPendingBlocks: () => Promise<void>;
   fetchOmissionReasons: () => Promise<void>;
   fetchValidationStats: (startDate: string, endDate: string) => Promise<any>;
-  validateBlock: (blockId: string, data: Omit<ValidateBlockDto, 'block_id'>) => Promise<boolean>;
+  validateBlock: (blockId: string, data: ValidateBlockDto) => Promise<boolean>;
   bulkValidate: (blockIds: string[], status: 'completed' | 'partial' | 'omitted') => Promise<boolean>;
   clearError: () => void;
 }

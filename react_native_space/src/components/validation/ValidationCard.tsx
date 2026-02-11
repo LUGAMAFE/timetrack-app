@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, Text, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Button, Menu, TextInput } from 'react-native-paper';
+import { Button, TextInput } from 'react-native-paper';
 // @ts-ignore - Slider types issue
 import Slider from '@react-native-community/slider';
 import { useThemeStore } from '../../stores/themeStore';
@@ -13,9 +13,9 @@ interface ValidationCardProps {
   block: PendingBlock;
   omissionReasons: OmissionReason[];
   onValidate: (blockId: string, status: ValidationStatus, data?: {
-    completion_percent?: number;
+    completion_percentage?: number;
     omission_reason_id?: string;
-    notes?: string;
+    omission_notes?: string;
   }) => void;
   isLoading?: boolean;
 }
@@ -31,7 +31,7 @@ export function ValidationCard({
   const [completionPercent, setCompletionPercent] = useState(50);
   const [selectedReason, setSelectedReason] = useState<OmissionReason | null>(null);
   const [notes, setNotes] = useState('');
-  const [menuVisible, setMenuVisible] = useState(false);
+  const [reasonModalVisible, setReasonModalVisible] = useState(false);
 
   const handleComplete = () => {
     onValidate(block?.id ?? '', 'completed');
@@ -43,8 +43,8 @@ export function ValidationCard({
       return;
     }
     onValidate(block?.id ?? '', 'partial', {
-      completion_percent: completionPercent,
-      notes: notes || undefined,
+      completion_percentage: completionPercent,
+      omission_notes: notes || undefined,
     });
   };
 
@@ -55,7 +55,7 @@ export function ValidationCard({
     }
     onValidate(block?.id ?? '', 'omitted', {
       omission_reason_id: selectedReason?.id,
-      notes: notes || undefined,
+      omission_notes: notes || undefined,
     });
   };
 
@@ -153,32 +153,76 @@ export function ValidationCard({
             <Text style={[styles.reasonLabel, { color: isDarkMode ? '#FFFFFF' : '#000000' }]}>
               Reason for omission:
             </Text>
-            <Menu
-              visible={menuVisible}
-              onDismiss={() => setMenuVisible(false)}
-              anchor={
-                <Button
-                  mode="outlined"
-                  onPress={() => setMenuVisible(true)}
-                  style={styles.reasonButton}
-                  contentStyle={styles.reasonButtonContent}
-                >
-                  {selectedReason?.label ?? 'Select reason'}
-                </Button>
-              }
+            <TouchableOpacity
+              style={[
+                styles.reasonButton,
+                { borderColor: '#6200EE', borderWidth: 1, borderRadius: 4, padding: 12 }
+              ]}
+              onPress={() => setReasonModalVisible(true)}
             >
-              {(omissionReasons ?? []).map((reason) => (
-                <Menu.Item
-                  key={reason?.id}
-                  onPress={() => {
-                    setSelectedReason(reason);
-                    setMenuVisible(false);
-                  }}
-                  title={reason?.label ?? ''}
-                />
-              ))}
-            </Menu>
+              <Text style={{ color: selectedReason ? (isDarkMode ? '#FFFFFF' : '#000000') : '#999999' }}>
+                {selectedReason?.label ?? 'Select reason'}
+              </Text>
+            </TouchableOpacity>
           </View>
+
+          {/* Reason Selection Modal */}
+          <Modal
+            visible={reasonModalVisible}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setReasonModalVisible(false)}
+          >
+            <TouchableOpacity
+              style={styles.modalOverlay}
+              activeOpacity={1}
+              onPress={() => setReasonModalVisible(false)}
+            >
+              <View
+                style={[
+                  styles.modalContent,
+                  { backgroundColor: isDarkMode ? '#2A2A2A' : '#FFFFFF' }
+                ]}
+                onStartShouldSetResponder={() => true}
+              >
+                <Text style={[styles.modalTitle, { color: isDarkMode ? '#FFFFFF' : '#000000' }]}>
+                  Select Reason
+                </Text>
+                <ScrollView style={styles.reasonList}>
+                  {(omissionReasons ?? []).map((reason) => (
+                    <TouchableOpacity
+                      key={reason?.id}
+                      style={[
+                        styles.reasonItem,
+                        selectedReason?.id === reason?.id && styles.reasonItemSelected
+                      ]}
+                      onPress={() => {
+                        setSelectedReason(reason);
+                        setReasonModalVisible(false);
+                      }}
+                    >
+                      <Text style={[
+                        styles.reasonItemText,
+                        { color: isDarkMode ? '#FFFFFF' : '#000000' }
+                      ]}>
+                        {reason?.label ?? ''}
+                      </Text>
+                      {selectedReason?.id === reason?.id && (
+                        <Ionicons name="checkmark" size={20} color="#6200EE" />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+                <Button
+                  mode="text"
+                  onPress={() => setReasonModalVisible(false)}
+                  style={styles.modalCloseButton}
+                >
+                  Close
+                </Button>
+              </View>
+            </TouchableOpacity>
+          </Modal>
 
           {/* Notes */}
           <TextInput
@@ -318,6 +362,52 @@ const styles = StyleSheet.create({
   },
   reasonButtonContent: {
     justifyContent: 'flex-start',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 400,
+    maxHeight: '70%',
+    borderRadius: 12,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 16,
+  },
+  reasonList: {
+    maxHeight: 300,
+  },
+  reasonItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  reasonItemSelected: {
+    backgroundColor: '#6200EE20',
+  },
+  reasonItemText: {
+    fontSize: 16,
+    flex: 1,
+  },
+  modalCloseButton: {
+    marginTop: 12,
   },
   notesInput: {
     marginBottom: 16,

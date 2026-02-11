@@ -50,13 +50,12 @@ export function ValidationScreen() {
     blockId: string,
     status: ValidationStatus,
     data?: {
-      completion_percent?: number;
+      completion_percentage?: number;
       omission_reason_id?: string;
-      notes?: string;
+      omission_notes?: string;
     }
   ) => {
-    const success = await validateBlock({
-      block_id: blockId,
+    const success = await validateBlock(blockId, {
       status,
       ...data,
     });

@@ -95,9 +95,9 @@ export interface ValidateBlockDto {
   status: ValidationStatus;
   actual_start_time?: string;
   actual_end_time?: string;
-  completion_percent?: number;
+  completion_percentage?: number;
   omission_reason_id?: string;
-  notes?: string;
+  omission_notes?: string;
 }
 
 export interface PendingBlock extends ScheduledBlock {
