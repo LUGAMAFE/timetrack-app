@@ -48,7 +48,8 @@ export const useGoalStore = create<GoalState>((set, get) => ({
       if (year !== undefined && !isNaN(year) && year > 0) params.year = year;
       if (month !== undefined && !isNaN(month) && month > 0) params.month = month;
       
-      const response = await api.get('/goals/monthly', { params });
+      const config = Object.keys(params).length > 0 ? { params } : {};
+      const response = await api.get('/goals/monthly', config);
       set({ monthlyGoals: response?.data ?? [], isLoading: false });
     } catch (e: any) {
       console.error('[GoalStore] fetchMonthlyGoals error:', e?.message);
@@ -64,7 +65,8 @@ export const useGoalStore = create<GoalState>((set, get) => ({
       if (year !== undefined && !isNaN(year) && year > 0) params.year = year;
       if (week !== undefined && !isNaN(week) && week > 0) params.week = week;
       
-      const response = await api.get('/goals/weekly', { params });
+      const config = Object.keys(params).length > 0 ? { params } : {};
+      const response = await api.get('/goals/weekly', config);
       set({ weeklyGoals: response?.data ?? [], isLoading: false });
     } catch (e: any) {
       console.error('[GoalStore] fetchWeeklyGoals error:', e?.message);
@@ -159,7 +161,8 @@ export const useGoalStore = create<GoalState>((set, get) => ({
       if (year !== undefined && !isNaN(year) && year > 0) params.year = year;
       if (month !== undefined && !isNaN(month) && month > 0) params.month = month;
       
-      const response = await api.get('/goals/monthly/progress', { params });
+      const config = Object.keys(params).length > 0 ? { params } : {};
+      const response = await api.get('/goals/monthly/progress', config);
       set({ monthlyProgress: response?.data ?? [], isLoading: false });
     } catch (e: any) {
       console.error('[GoalStore] fetchMonthlyProgress error:', e?.message);
@@ -175,7 +178,8 @@ export const useGoalStore = create<GoalState>((set, get) => ({
       if (year !== undefined && !isNaN(year) && year > 0) params.year = year;
       if (week !== undefined && !isNaN(week) && week > 0) params.week = week;
       
-      const response = await api.get('/goals/weekly/progress', { params });
+      const config = Object.keys(params).length > 0 ? { params } : {};
+      const response = await api.get('/goals/weekly/progress', config);
       set({ weeklyProgress: response?.data ?? [], isLoading: false });
     } catch (e: any) {
       console.error('[GoalStore] fetchWeeklyProgress error:', e?.message);
