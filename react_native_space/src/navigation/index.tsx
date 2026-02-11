@@ -3,6 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeStore } from '../stores/themeStore';
 import { useAuthStore } from '../stores/authStore';
 import { useValidationStore } from '../stores/validationStore';
@@ -180,6 +181,7 @@ function MainNavigator() {
   const isDarkMode = useThemeStore((s) => s.isDarkMode);
   const pendingCount = useValidationStore((s) => s.pendingBlocks?.length ?? 0);
   const violationsCount = useRuleStore((s) => s.unacknowledgedCount ?? 0);
+  const insets = useSafeAreaInsets();
 
   return (
     <Tab.Navigator
@@ -206,9 +208,9 @@ function MainNavigator() {
         tabBarStyle: {
           backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFFFF',
           borderTopColor: isDarkMode ? '#333333' : '#E0E0E0',
-          paddingBottom: Platform.OS === 'ios' ? 20 : 8,
           paddingTop: 8,
-          height: Platform.OS === 'ios' ? 85 : 65,
+          paddingBottom: Math.max(insets.bottom, 8),
+          height: 60 + Math.max(insets.bottom, 8),
         },
         headerShown: false,
       })}
