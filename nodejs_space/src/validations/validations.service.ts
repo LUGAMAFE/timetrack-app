@@ -72,9 +72,7 @@ export class ValidationsService {
   }
 
   async getPendingValidations(userId: string, date?: string) {
-    // If no date provided, only get TODAY's pending blocks
-    const targetDate = date || new Date().toISOString().split('T')[0];
-    
+    // Get all pending validations (not filtered by date yet)
     const { data, error } = await this.supabaseService
       .getAdminClient()
       .from('block_validations')
@@ -96,7 +94,6 @@ export class ValidationsService {
       `)
       .eq('user_id', userId)
       .eq('status', 'pending')
-      .eq('scheduled_block.date', targetDate)
       .order('created_at', { ascending: true });
 
     if (error) {
@@ -104,15 +101,38 @@ export class ValidationsService {
       throw new BadRequestException(error.message);
     }
 
-    // Transform to PendingBlock format with days_ago calculation
-    const today = new Date().toISOString().split('T')[0];
+    // Get current date and time
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    const currentTimeStr = now.toTimeString().slice(0, 5); // "HH:mm"
+
+    // Transform and FILTER to only show blocks that have already passed
     const transformed = (data ?? []).map((validation: any) => {
       const block = validation?.scheduled_block;
       if (!block || !block?.date) return null;
 
-      const blockDate = new Date(block.date);
-      const todayDate = new Date(today);
-      const daysAgo = Math.floor((todayDate.getTime() - blockDate.getTime()) / (1000 * 60 * 60 * 24));
+      const blockDate = block.date;
+      const blockEndTime = block.end_time;
+
+      // CRITICAL: Only show blocks that have FINISHED
+      // 1. Blocks from previous days → show all
+      // 2. Blocks from today → only if end_time has passed
+      // 3. Blocks from future days → never show
+      if (blockDate > todayStr) {
+        return null; // Future blocks
+      }
+
+      if (blockDate === todayStr) {
+        // Today's block - check if it has ended
+        if (blockEndTime > currentTimeStr) {
+          return null; // Block hasn't finished yet
+        }
+      }
+
+      // Calculate days_ago
+      const blockDateObj = new Date(blockDate);
+      const todayDateObj = new Date(todayStr);
+      const daysAgo = Math.floor((todayDateObj.getTime() - blockDateObj.getTime()) / (1000 * 60 * 60 * 24));
 
       return {
         ...block,
