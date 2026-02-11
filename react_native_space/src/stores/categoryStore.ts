@@ -55,7 +55,13 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
       return null;
     } catch (e: any) {
       console.error('[CategoryStore] createCategory error:', e?.message);
-      set({ error: e?.response?.data?.message ?? 'Failed to create category', isLoading: false });
+      const errorMsg = e?.response?.data?.message ?? 'Failed to create category';
+      // Check for duplicate name constraint violation
+      const isDuplicate = errorMsg?.includes?.('unique constraint') || errorMsg?.includes?.('already exists');
+      const friendlyError = isDuplicate 
+        ? `A category named "${data.name}" already exists. Please use a different name.`
+        : errorMsg;
+      set({ error: friendlyError, isLoading: false });
       return null;
     }
   },

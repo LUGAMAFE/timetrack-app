@@ -37,7 +37,7 @@ export function CategoryEditorScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProps>();
   const isDarkMode = useThemeStore((s) => s.isDarkMode);
-  const { categories, createCategory, updateCategory, deleteCategory, isLoading } = useCategoryStore();
+  const { categories, createCategory, updateCategory, deleteCategory, isLoading, error: storeError, clearError } = useCategoryStore();
 
   const categoryId = route.params?.categoryId;
   const existingCategory = categories.find(c => c?.id === categoryId);
@@ -49,7 +49,10 @@ export function CategoryEditorScreen() {
   const [monthlyGoalHours, setMonthlyGoalHours] = useState('');
   const [monthlyLimitHours, setMonthlyLimitHours] = useState('');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [error, setError] = useState('');
+  const [localError, setLocalError] = useState('');
+  
+  // Combined error from store and local validation
+  const error = storeError || localError;
 
   useEffect(() => {
     if (existingCategory) {
@@ -63,10 +66,11 @@ export function CategoryEditorScreen() {
 
   const validateForm = (): boolean => {
     if (!name.trim()) {
-      setError('Name is required');
+      setLocalError('Name is required');
       return false;
     }
-    setError('');
+    setLocalError('');
+    clearError();
     return true;
   };
 
@@ -96,8 +100,10 @@ export function CategoryEditorScreen() {
     }
 
     if (success) {
+      clearError();
       navigation.goBack();
     }
+    // If not successful, error is already set in the store and will be displayed
   };
 
   const handleDelete = async () => {
