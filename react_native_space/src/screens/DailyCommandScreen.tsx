@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback, useState } from 'react';
-import { View, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import { View, StyleSheet, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FAB, Portal, Modal, Text, Banner } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
@@ -33,6 +33,7 @@ export function DailyCommandScreen() {
   const [selectedBlock, setSelectedBlock] = useState<ScheduledBlock | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [showViolationBanner, setShowViolationBanner] = useState(true);
+  const [showValidationBanner, setShowValidationBanner] = useState(true);
 
   // Include blocks from today AND previous day (for midnight-crossing blocks)
   const prevDate = new Date(selectedDate);
@@ -148,30 +149,41 @@ export function DailyCommandScreen() {
         </Banner>
       )}
 
-      {/* Pending Validation Alert */}
-      {pendingCount > 0 && (
-        <View style={[styles.pendingAlert, { backgroundColor: '#FFC10720' }]}>
+      {/* Pending Validation Alert - Clickable and Dismissible */}
+      {pendingCount > 0 && showValidationBanner && (
+        <TouchableOpacity 
+          style={[styles.pendingAlert, { backgroundColor: '#FFC10720' }]}
+          onPress={() => {
+            setShowValidationBanner(false);
+            navigation.navigate('Validate' as never);
+          }}
+          activeOpacity={0.7}
+        >
           <Ionicons name="checkmark-circle-outline" size={20} color="#FF9800" />
           <Text style={styles.pendingText}>
             {pendingCount} completed block{pendingCount > 1 ? 's' : ''} ready to validate
           </Text>
-        </View>
+          <TouchableOpacity 
+            onPress={(e) => {
+              e.stopPropagation();
+              setShowValidationBanner(false);
+            }}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="close" size={20} color="#666" />
+          </TouchableOpacity>
+        </TouchableOpacity>
       )}
 
-      {/* Timeline */}
-      <ScrollView
-        style={styles.scrollView}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-        }
-      >
-        <DayTimeline
-          date={selectedDate}
-          blocks={todayBlocks}
-          onBlockPress={handleBlockPress}
-          onBlockLongPress={handleBlockLongPress}
-        />
-      </ScrollView>
+      {/* Timeline - DayTimeline has its own ScrollView */}
+      <DayTimeline
+        date={selectedDate}
+        blocks={todayBlocks}
+        onBlockPress={handleBlockPress}
+        onBlockLongPress={handleBlockLongPress}
+        onRefresh={handleRefresh}
+        refreshing={refreshing}
+      />
 
       {/* FAB */}
       <FAB
@@ -235,9 +247,10 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 8,
     borderRadius: 8,
+    gap: 8,
   },
   pendingText: {
-    marginLeft: 8,
+    flex: 1,
     color: '#FF9800',
     fontWeight: '500',
   },

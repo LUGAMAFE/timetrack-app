@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useRef } from 'react';
-import { View, StyleSheet, Text, ScrollView, TouchableOpacity, Platform } from 'react-native';
+import { View, StyleSheet, Text, ScrollView, TouchableOpacity, Platform, RefreshControl } from 'react-native';
 import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { runOnJS } from 'react-native-reanimated';
 import { useThemeStore } from '../../stores/themeStore';
@@ -13,6 +13,8 @@ interface DayTimelineProps {
   onBlockLongPress?: (block: ScheduledBlock) => void;
   startHour?: number;
   endHour?: number;
+  onRefresh?: () => void;
+  refreshing?: boolean;
 }
 
 // Zoom constraints
@@ -168,6 +170,8 @@ export function DayTimeline({
   onBlockLongPress,
   startHour = 0,
   endHour = 24,
+  onRefresh,
+  refreshing = false,
 }: DayTimelineProps) {
   const isDarkMode = useThemeStore((s) => s.isDarkMode);
   const [hourHeight, setHourHeight] = useState(DEFAULT_HOUR_HEIGHT);
@@ -351,9 +355,14 @@ export function DayTimeline({
             contentContainerStyle={[
               styles.contentContainer, 
               { minHeight: timelineHeight + 40 },
-              Platform.OS === 'web' && { paddingTop: 52 }
+              Platform.OS === 'web' && { paddingTop: 56 }
             ]}
             showsVerticalScrollIndicator={true}
+            refreshControl={
+              onRefresh ? (
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+              ) : undefined
+            }
           >
             <View style={[styles.timeline, { height: timelineHeight }]}>
           {/* Hour lines */}
