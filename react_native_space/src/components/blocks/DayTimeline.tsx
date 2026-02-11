@@ -1,9 +1,8 @@
 import React, { useMemo } from 'react';
-import { View, StyleSheet, Text, ScrollView } from 'react-native';
+import { View, StyleSheet, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { useThemeStore } from '../../stores/themeStore';
-import { TimeBlock } from './TimeBlock';
 import type { ScheduledBlock } from '../../types';
-import { format, parseISO, isWithinInterval, set } from 'date-fns';
+import { format } from 'date-fns';
 
 interface DayTimelineProps {
   date: string;
@@ -14,72 +13,128 @@ interface DayTimelineProps {
   endHour?: number;
 }
 
-const HOUR_HEIGHT = 80;
+const HOUR_HEIGHT = 60; // Altura por hora en píxeles
+const HOUR_LABEL_WIDTH = 50;
+
+// Convierte "HH:mm" a minutos desde medianoche
+function timeToMinutes(time: string): number {
+  const [hours, minutes] = time.split(':').map(Number);
+  return (hours ?? 0) * 60 + (minutes ?? 0);
+}
+
+// Calcula la duración en minutos (maneja cruce de medianoche)
+function calculateDuration(startTime: string, endTime: string, crossesMidnight?: boolean): number {
+  const startMinutes = timeToMinutes(startTime);
+  const endMinutes = timeToMinutes(endTime);
+  
+  if (crossesMidnight || endMinutes < startMinutes) {
+    // Cruza medianoche: (24:00 - start) + end
+    return (1440 - startMinutes) + endMinutes;
+  }
+  return endMinutes - startMinutes;
+}
+
+// Detecta overlaps y asigna columnas a los bloques
+interface PositionedBlock extends ScheduledBlock {
+  top: number;
+  height: number;
+  column: number;
+  totalColumns: number;
+}
+
+function positionBlocks(blocks: ScheduledBlock[], startHour: number): PositionedBlock[] {
+  if (!blocks || blocks.length === 0) return [];
+
+  const positioned: PositionedBlock[] = blocks.map(block => {
+    const startMinutes = timeToMinutes(block?.start_time ?? '00:00');
+    const duration = calculateDuration(
+      block?.start_time ?? '00:00', 
+      block?.end_time ?? '00:00',
+      block?.crosses_midnight
+    );
+    const top = ((startMinutes / 60) - startHour) * HOUR_HEIGHT;
+    const height = Math.max((duration / 60) * HOUR_HEIGHT, 30); // Mínimo 30px
+
+    return {
+      ...block,
+      top,
+      height,
+      column: 0,
+      totalColumns: 1,
+    };
+  });
+
+  // Detectar overlaps y asignar columnas
+  positioned.sort((a, b) => a.top - b.top);
+
+  for (let i = 0; i < positioned.length; i++) {
+    const current = positioned[i];
+    if (!current) continue;
+    const overlapping = [];
+
+    for (let j = 0; j < positioned.length; j++) {
+      if (i === j) continue;
+      const other = positioned[j];
+      if (!other) continue;
+
+      // Check if blocks overlap
+      const currentEnd = current.top + current.height;
+      const otherEnd = other.top + other.height;
+      if (current.top < otherEnd && currentEnd > other.top) {
+        overlapping.push(other);
+      }
+    }
+
+    if (overlapping.length > 0) {
+      const allBlocks = [current, ...overlapping];
+      const usedColumns = new Set(allBlocks.map(b => b.column));
+      let column = 0;
+      while (usedColumns.has(column)) column++;
+      current.column = column;
+      current.totalColumns = Math.max(...allBlocks.map(b => b.column)) + 1;
+
+      // Update totalColumns for all overlapping blocks
+      overlapping.forEach(b => {
+        b.totalColumns = current.totalColumns;
+      });
+    }
+  }
+
+  return positioned;
+}
 
 export function DayTimeline({
   date,
   blocks,
   onBlockPress,
   onBlockLongPress,
-  startHour = 6,
-  endHour = 23,
+  startHour = 0,
+  endHour = 24,
 }: DayTimelineProps) {
   const isDarkMode = useThemeStore((s) => s.isDarkMode);
   
   const hours = useMemo(() => {
     const result = [];
-    for (let h = startHour; h <= endHour; h++) {
+    for (let h = startHour; h < endHour; h++) {
       result.push(h);
     }
     return result;
   }, [startHour, endHour]);
 
-  const sortedBlocks = useMemo(() => {
-    return [...(blocks ?? [])]
-      .filter(b => b?.date === date)
-      .sort((a, b) => {
-        const aTime = a?.start_time ?? '00:00';
-        const bTime = b?.start_time ?? '00:00';
-        return aTime.localeCompare(bTime);
-      });
-  }, [blocks, date]);
+  const positionedBlocks = useMemo(() => {
+    const filtered = (blocks ?? []).filter(b => b?.date === date);
+    return positionBlocks(filtered, startHour);
+  }, [blocks, date, startHour]);
 
   const currentHour = new Date().getHours();
   const currentMinute = new Date().getMinutes();
   const isToday = format(new Date(), 'yyyy-MM-dd') === date;
-
-  const getCurrentBlock = (): ScheduledBlock | null => {
-    if (!isToday) return null;
-    const now = new Date();
-    
-    for (const block of sortedBlocks) {
-      if (!block?.start_time || !block?.end_time || !block?.date) continue;
-      
-      const startParts = block.start_time.split(':');
-      const endParts = block.end_time.split(':');
-      
-      const blockStart = set(parseISO(block.date), {
-        hours: parseInt(startParts?.[0] ?? '0', 10),
-        minutes: parseInt(startParts?.[1] ?? '0', 10),
-      });
-      const blockEnd = set(parseISO(block.date), {
-        hours: parseInt(endParts?.[0] ?? '0', 10),
-        minutes: parseInt(endParts?.[1] ?? '0', 10),
-      });
-      
-      if (isWithinInterval(now, { start: blockStart, end: blockEnd })) {
-        return block;
-      }
-    }
-    return null;
-  };
-
-  const currentBlock = getCurrentBlock();
+  
   const currentTimePosition = isToday 
-    ? (currentHour - startHour) * HOUR_HEIGHT + (currentMinute / 60) * HOUR_HEIGHT 
+    ? (currentHour - startHour + currentMinute / 60) * HOUR_HEIGHT 
     : -1;
 
-  if (sortedBlocks.length === 0) {
+  if (positionedBlocks.length === 0) {
     return (
       <View style={[styles.emptyContainer, { backgroundColor: isDarkMode ? '#1E1E1E' : '#FAFAFA' }]}>
         <Text style={[styles.emptyText, { color: isDarkMode ? '#AAAAAA' : '#888888' }]}>
@@ -92,48 +147,86 @@ export function DayTimeline({
     );
   }
 
+  const timelineHeight = (endHour - startHour) * HOUR_HEIGHT;
+
   return (
     <ScrollView 
       style={styles.container}
-      contentContainerStyle={styles.contentContainer}
-      showsVerticalScrollIndicator={false}
+      contentContainerStyle={[styles.contentContainer, { height: timelineHeight + 40 }]}
+      showsVerticalScrollIndicator={true}
     >
-      {/* Timeline grid */}
-      <View style={styles.timelineGrid}>
-        {hours.map((hour) => (
-          <View key={hour} style={[styles.hourRow, { height: HOUR_HEIGHT }]}>
-            <Text style={[styles.hourLabel, { color: isDarkMode ? '#888888' : '#666666' }]}>
-              {formatHour(hour)}
-            </Text>
-            <View 
-              style={[
-                styles.hourLine, 
-                { borderTopColor: isDarkMode ? '#333333' : '#E0E0E0' }
-              ]} 
-            />
+      <View style={[styles.timeline, { height: timelineHeight }]}>
+        {/* Hour lines */}
+        {hours.map((hour) => {
+          const top = (hour - startHour) * HOUR_HEIGHT;
+          return (
+            <View key={hour} style={[styles.hourRow, { top }]}>
+              <Text style={[styles.hourLabel, { color: isDarkMode ? '#888888' : '#666666' }]}>
+                {formatHour(hour)}
+              </Text>
+              <View 
+                style={[
+                  styles.hourLine, 
+                  { borderTopColor: isDarkMode ? '#333333' : '#E0E0E0' }
+                ]} 
+              />
+            </View>
+          );
+        })}
+
+        {/* Current time red line */}
+        {isToday && currentTimePosition >= 0 && currentTimePosition <= timelineHeight && (
+          <View style={[styles.currentTimeIndicator, { top: currentTimePosition }]}>
+            <View style={styles.currentTimeDot} />
+            <View style={styles.currentTimeLine} />
           </View>
-        ))}
-      </View>
+        )}
 
-      {/* Current time indicator */}
-      {isToday && currentTimePosition >= 0 && (
-        <View style={[styles.currentTimeIndicator, { top: currentTimePosition + 20 }]}>
-          <View style={styles.currentTimeDot} />
-          <View style={styles.currentTimeLine} />
+        {/* Blocks positioned absolutely */}
+        <View style={styles.blocksContainer}>
+          {positionedBlocks.map((block) => {
+            const blockWidth = block.totalColumns > 1 
+              ? `${100 / block.totalColumns}%`
+              : '100%';
+            const blockLeft = block.totalColumns > 1
+              ? `${(block.column * 100) / block.totalColumns}%`
+              : 0;
+
+            return (
+              <TouchableOpacity
+                key={block?.id ?? Math.random().toString()}
+                onPress={() => onBlockPress?.(block)}
+                onLongPress={() => onBlockLongPress?.(block)}
+                style={[
+                  styles.blockCard,
+                  {
+                    top: block.top,
+                    height: block.height,
+                    width: blockWidth,
+                    left: blockLeft,
+                    backgroundColor: block?.category?.color ?? '#6200EE',
+                    borderLeftColor: block?.category?.color ?? '#6200EE',
+                  }
+                ]}
+                activeOpacity={0.8}
+              >
+                <View style={styles.blockContent}>
+                  <Text style={styles.blockTime} numberOfLines={1}>
+                    {block?.start_time} - {block?.end_time}
+                  </Text>
+                  <Text style={styles.blockTitle} numberOfLines={1}>
+                    {block?.title ?? 'Untitled'}
+                  </Text>
+                  {block.height > 60 && block?.notes && (
+                    <Text style={styles.blockNotes} numberOfLines={2}>
+                      {block.notes}
+                    </Text>
+                  )}
+                </View>
+              </TouchableOpacity>
+            );
+          })}
         </View>
-      )}
-
-      {/* Blocks */}
-      <View style={styles.blocksContainer}>
-        {sortedBlocks.map((block) => (
-          <TimeBlock
-            key={block?.id ?? Math.random().toString()}
-            block={block}
-            onPress={() => onBlockPress?.(block)}
-            onLongPress={() => onBlockLongPress?.(block)}
-            isCurrentBlock={currentBlock?.id === block?.id}
-          />
-        ))}
       </View>
     </ScrollView>
   );
@@ -151,7 +244,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
-    paddingBottom: 100,
+    paddingBottom: 40,
   },
   emptyContainer: {
     flex: 1,
@@ -170,22 +263,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 8,
   },
-  timelineGrid: {
+  timeline: {
+    position: 'relative',
+    marginTop: 20,
+  },
+  hourRow: {
     position: 'absolute',
     left: 0,
     right: 0,
-    top: 0,
-  },
-  hourRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+    height: HOUR_HEIGHT,
   },
   hourLabel: {
-    width: 50,
-    fontSize: 12,
+    width: HOUR_LABEL_WIDTH,
+    fontSize: 11,
     textAlign: 'right',
     paddingRight: 8,
     marginTop: -6,
+    fontWeight: '500',
   },
   hourLine: {
     flex: 1,
@@ -193,18 +289,20 @@ const styles = StyleSheet.create({
   },
   currentTimeIndicator: {
     position: 'absolute',
-    left: 50,
+    left: HOUR_LABEL_WIDTH,
     right: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    zIndex: 100,
+    zIndex: 1000,
   },
   currentTimeDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
     backgroundColor: '#F44336',
-    marginLeft: -5,
+    marginLeft: -6,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
   },
   currentTimeLine: {
     flex: 1,
@@ -212,8 +310,44 @@ const styles = StyleSheet.create({
     backgroundColor: '#F44336',
   },
   blocksContainer: {
-    marginTop: 20,
-    marginLeft: 55,
-    paddingRight: 16,
+    position: 'absolute',
+    left: HOUR_LABEL_WIDTH + 8,
+    right: 8,
+    top: 0,
+    bottom: 0,
+  },
+  blockCard: {
+    position: 'absolute',
+    borderRadius: 6,
+    borderLeftWidth: 4,
+    padding: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+    marginHorizontal: 2,
+    opacity: 0.9,
+  },
+  blockContent: {
+    flex: 1,
+  },
+  blockTime: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    opacity: 0.9,
+    marginBottom: 2,
+  },
+  blockTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  blockNotes: {
+    fontSize: 11,
+    color: '#FFFFFF',
+    opacity: 0.8,
+    marginTop: 4,
   },
 });
