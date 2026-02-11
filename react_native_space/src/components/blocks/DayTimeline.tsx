@@ -286,53 +286,58 @@ export function DayTimeline({
 
   return (
     <GestureHandlerRootView style={styles.container}>
-      {/* Floating zoom controls - Google Maps style */}
-      <View style={[styles.floatingZoomControls, { backgroundColor: isDarkMode ? '#2A2A2A' : '#FFFFFF' }]}>
-        <TouchableOpacity
-          onPress={() => {
-            const newHeight = Math.min(MAX_HOUR_HEIGHT, hourHeight + 10);
-            updateHourHeight(newHeight);
-          }}
-          disabled={hourHeight >= MAX_HOUR_HEIGHT}
-          style={[
-            styles.floatingZoomButton,
-            styles.floatingZoomButtonTop,
-            hourHeight >= MAX_HOUR_HEIGHT && styles.floatingZoomButtonDisabled
-          ]}
-        >
-          <Text style={[
-            styles.floatingZoomIcon,
-            { color: hourHeight >= MAX_HOUR_HEIGHT ? '#888' : (isDarkMode ? '#FFF' : '#000') }
-          ]}>+</Text>
-        </TouchableOpacity>
-        
-        <View style={styles.floatingZoomDivider} />
-        
-        <TouchableOpacity
-          onPress={() => {
-            const newHeight = Math.max(MIN_HOUR_HEIGHT, hourHeight - 10);
-            updateHourHeight(newHeight);
-          }}
-          disabled={hourHeight <= MIN_HOUR_HEIGHT}
-          style={[
-            styles.floatingZoomButton,
-            styles.floatingZoomButtonBottom,
-            hourHeight <= MIN_HOUR_HEIGHT && styles.floatingZoomButtonDisabled
-          ]}
-        >
-          <Text style={[
-            styles.floatingZoomIcon,
-            { color: hourHeight <= MIN_HOUR_HEIGHT ? '#888' : (isDarkMode ? '#FFF' : '#000') }
-          ]}>−</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Zoom percentage indicator */}
-      {zoomPercent !== 100 && (
-        <View style={[styles.zoomPercentBadge, { backgroundColor: isDarkMode ? '#6200EE' : '#6200EE' }]}>
-          <Text style={styles.zoomPercentText}>{zoomPercent}%</Text>
-          {Platform.OS !== 'web' && (
-            <Text style={styles.zoomHintText}>Pinch to zoom</Text>
+      {/* Sticky zoom controls - Web only */}
+      {Platform.OS === 'web' && (
+        <View style={[styles.stickyZoomBar, { backgroundColor: isDarkMode ? '#1E1E1E' : '#F8F8F8' }]}>
+          <TouchableOpacity
+            onPress={() => {
+              const newHeight = Math.max(MIN_HOUR_HEIGHT, hourHeight - 10);
+              updateHourHeight(newHeight);
+            }}
+            disabled={hourHeight <= MIN_HOUR_HEIGHT}
+            style={[
+              styles.stickyZoomButton,
+              { backgroundColor: isDarkMode ? '#2A2A2A' : '#FFFFFF' },
+              hourHeight <= MIN_HOUR_HEIGHT && styles.stickyZoomButtonDisabled
+            ]}
+          >
+            <Text style={[
+              styles.stickyZoomIcon,
+              { color: hourHeight <= MIN_HOUR_HEIGHT ? '#888' : (isDarkMode ? '#FFF' : '#333') }
+            ]}>−</Text>
+          </TouchableOpacity>
+          
+          <View style={[styles.zoomPercentContainer, { backgroundColor: isDarkMode ? '#2A2A2A' : '#FFFFFF' }]}>
+            <Text style={[styles.zoomPercentLabel, { color: isDarkMode ? '#AAA' : '#666' }]}>
+              {zoomPercent}%
+            </Text>
+          </View>
+          
+          <TouchableOpacity
+            onPress={() => {
+              const newHeight = Math.min(MAX_HOUR_HEIGHT, hourHeight + 10);
+              updateHourHeight(newHeight);
+            }}
+            disabled={hourHeight >= MAX_HOUR_HEIGHT}
+            style={[
+              styles.stickyZoomButton,
+              { backgroundColor: isDarkMode ? '#2A2A2A' : '#FFFFFF' },
+              hourHeight >= MAX_HOUR_HEIGHT && styles.stickyZoomButtonDisabled
+            ]}
+          >
+            <Text style={[
+              styles.stickyZoomIcon,
+              { color: hourHeight >= MAX_HOUR_HEIGHT ? '#888' : (isDarkMode ? '#FFF' : '#333') }
+            ]}>+</Text>
+          </TouchableOpacity>
+          
+          {zoomPercent !== 100 && (
+            <TouchableOpacity
+              onPress={() => setHourHeight(DEFAULT_HOUR_HEIGHT)}
+              style={[styles.resetZoomButton, { backgroundColor: '#6200EE' }]}
+            >
+              <Text style={styles.resetZoomText}>Reset</Text>
+            </TouchableOpacity>
           )}
         </View>
       )}
@@ -472,72 +477,56 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  floatingZoomControls: {
-    position: 'absolute',
-    right: 16,
-    top: '50%',
-    marginTop: -40,
-    borderRadius: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-    zIndex: 1000,
-    overflow: 'hidden',
-  },
-  floatingZoomButton: {
-    width: 44,
-    height: 44,
+  stickyZoomBar: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+    gap: 8,
   },
-  floatingZoomButtonTop: {
-    borderTopLeftRadius: 8,
-    borderTopRightRadius: 8,
-  },
-  floatingZoomButtonBottom: {
-    borderBottomLeftRadius: 8,
-    borderBottomRightRadius: 8,
-  },
-  floatingZoomButtonDisabled: {
-    opacity: 0.3,
-  },
-  floatingZoomIcon: {
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  floatingZoomDivider: {
-    height: 1,
-    backgroundColor: '#E0E0E0',
-  },
-  zoomPercentBadge: {
-    position: 'absolute',
-    top: 12,
-    right: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+  stickyZoomButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.1,
     shadowRadius: 2,
-    elevation: 3,
-    zIndex: 999,
+    elevation: 2,
   },
-  zoomPercentText: {
+  stickyZoomButtonDisabled: {
+    opacity: 0.4,
+  },
+  stickyZoomIcon: {
+    fontSize: 20,
+    fontWeight: '600',
+  },
+  zoomPercentContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    minWidth: 60,
+    alignItems: 'center',
+  },
+  zoomPercentLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  resetZoomButton: {
+    marginLeft: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  resetZoomText: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '600',
     color: '#FFFFFF',
-    textAlign: 'center',
-  },
-  zoomHintText: {
-    fontSize: 9,
-    fontWeight: '500',
-    color: '#FFFFFF',
-    opacity: 0.8,
-    marginTop: 2,
-    textAlign: 'center',
   },
   gestureContainer: {
     flex: 1,
