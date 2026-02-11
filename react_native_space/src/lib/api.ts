@@ -2,11 +2,12 @@ import axios, { AxiosError } from 'axios';
 import { supabase } from './supabase';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || '';
+const BASE_URL = API_URL.endsWith('/') ? `${API_URL}api` : `${API_URL}/api`;
 
-console.log('[API] Configured with URL:', API_URL);
+console.log('[API] Configured with URL:', BASE_URL);
 
 const api = axios.create({
-  baseURL: API_URL,
+  baseURL: BASE_URL,
   timeout: 15000,
   headers: { 'Content-Type': 'application/json' }
 });

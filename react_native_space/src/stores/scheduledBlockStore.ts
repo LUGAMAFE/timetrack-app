@@ -44,7 +44,7 @@ export const useScheduledBlockStore = create<ScheduledBlockState>((set, get) => 
   fetchBlocksForDate: async (date) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await api.get('/scheduled-blocks', { params: { date } });
+      const response = await api.get('/blocks', { params: { date } });
       const newBlocks = response?.data ?? [];
       
       set((state) => {
@@ -66,7 +66,7 @@ export const useScheduledBlockStore = create<ScheduledBlockState>((set, get) => 
   fetchBlocksForRange: async (startDate, endDate) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await api.get('/scheduled-blocks', { 
+      const response = await api.get('/blocks', { 
         params: { startDate, endDate } 
       });
       const newBlocks = response?.data ?? [];
@@ -90,7 +90,7 @@ export const useScheduledBlockStore = create<ScheduledBlockState>((set, get) => 
   createBlock: async (data) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await api.post('/scheduled-blocks', data);
+      const response = await api.post('/blocks', data);
       const newBlock = response?.data;
       if (newBlock) {
         set((state) => ({ 
@@ -111,7 +111,7 @@ export const useScheduledBlockStore = create<ScheduledBlockState>((set, get) => 
   updateBlock: async (id, data) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await api.put(`/scheduled-blocks/${id}`, data);
+      const response = await api.put(`/blocks/${id}`, data);
       const updatedBlock = response?.data;
       if (updatedBlock) {
         set((state) => ({
@@ -132,7 +132,7 @@ export const useScheduledBlockStore = create<ScheduledBlockState>((set, get) => 
   deleteBlock: async (id) => {
     set({ isLoading: true, error: null });
     try {
-      await api.delete(`/scheduled-blocks/${id}`);
+      await api.delete(`/blocks/${id}`);
       set((state) => ({
         blocks: state.blocks.filter(b => b?.id !== id),
         isLoading: false
@@ -148,7 +148,7 @@ export const useScheduledBlockStore = create<ScheduledBlockState>((set, get) => 
   applyTemplate: async (data) => {
     set({ isLoading: true, error: null });
     try {
-      await api.post('/scheduled-blocks/apply-template', data);
+      await api.post('/blocks/apply-template', data);
       // Refresh the week after applying template
       await get().fetchBlocksForWeek(data.start_date);
       return true;
@@ -161,7 +161,7 @@ export const useScheduledBlockStore = create<ScheduledBlockState>((set, get) => 
 
   checkOverlaps: async (date, startTime, endTime, excludeId) => {
     try {
-      const response = await api.get('/scheduled-blocks/check-overlaps', {
+      const response = await api.get('/blocks/check-overlaps', {
         params: { date, start_time: startTime, end_time: endTime, exclude_id: excludeId }
       });
       return response?.data ?? [];

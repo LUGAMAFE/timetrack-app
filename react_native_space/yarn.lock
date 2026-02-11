@@ -2125,6 +2125,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@react-native-community/slider@npm:5.0.1":
+  version: 5.0.1
+  resolution: "@react-native-community/slider@npm:5.0.1"
+  checksum: 10c0/b2e712bf97057704ebbd00506de3b6df69b41da111234dfda94926641dd27fdd2186b31b3ba6d8b63e9804411eba7a70b74e293a4eefd3d433561bc61b5b5c3b
+  languageName: node
+  linkType: hard
+
 "@react-native-picker/picker@npm:2.11.1":
   version: 2.11.1
   resolution: "@react-native-picker/picker@npm:2.11.1"
@@ -8624,6 +8631,7 @@ __metadata:
     "@expo/vector-icons": "npm:^15.0.3"
     "@react-native-async-storage/async-storage": "npm:2.2.0"
     "@react-native-community/datetimepicker": "npm:8.4.4"
+    "@react-native-community/slider": "npm:5.0.1"
     "@react-native-picker/picker": "npm:2.11.1"
     "@react-navigation/bottom-tabs": "npm:^7.13.0"
     "@react-navigation/native": "npm:^7.1.28"

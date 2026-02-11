@@ -21,7 +21,7 @@ export const useTimeEntryStore = create<TimeEntryState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const params = month ? { month } : {};
-      const res = await api.get('/api/time-entries', { params });
+      const res = await api.get('/time-entries', { params });
       set({ entries: res?.data?.entries ?? [], isLoading: false });
     } catch (e: any) {
       set({ error: e?.message || 'Failed to fetch entries', isLoading: false });
@@ -31,8 +31,8 @@ export const useTimeEntryStore = create<TimeEntryState>((set, get) => ({
   createEntry: async (dto) => {
     set({ isLoading: true, error: null });
     try {
-      await api.post('/api/time-entries', dto);
-      await api.post('/api/streaks/update');
+      await api.post('/time-entries', dto);
+      await api.post('/streaks/update');
       set({ isLoading: false });
       return true;
     } catch (e: any) {
