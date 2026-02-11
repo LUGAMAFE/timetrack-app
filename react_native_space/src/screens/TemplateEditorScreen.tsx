@@ -14,7 +14,7 @@ import {
 } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { TimePickerModal } from 'react-native-paper-dates';
 import { format, parse } from 'date-fns';
 import { useThemeStore } from '../stores/themeStore';
 import { useTemplateStore } from '../stores/templateStore';
@@ -115,19 +115,21 @@ export function TemplateEditorScreen() {
     }
   };
 
-  const handleTimeChange = (type: 'start' | 'end', event: any, date?: Date) => {
-    if (type === 'start') setShowStartPicker(false);
-    else setShowEndPicker(false);
-
-    if (event.type === 'dismissed' || !date) return;
-
-    const timeString = format(date, 'HH:mm');
-    if (type === 'start') setStartTime(timeString);
-    else setEndTime(timeString);
+  const handleStartTimeConfirm = ({ hours, minutes }: { hours: number; minutes: number }) => {
+    setShowStartPicker(false);
+    const timeString = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+    setStartTime(timeString);
   };
 
-  const parseTime = (time: string): Date => {
-    return parse(time, 'HH:mm', new Date());
+  const handleEndTimeConfirm = ({ hours, minutes }: { hours: number; minutes: number }) => {
+    setShowEndPicker(false);
+    const timeString = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+    setEndTime(timeString);
+  };
+
+  const getHoursAndMinutes = (time: string): { hours: number; minutes: number } => {
+    const [hours, minutes] = time.split(':').map(Number);
+    return { hours: hours ?? 0, minutes: minutes ?? 0 };
   };
 
   const getBlocksForDay = (dayOfWeek: number): TemplateBlock[] => {
@@ -301,14 +303,29 @@ export function TemplateEditorScreen() {
               </View>
             </View>
 
-            {(showStartPicker || showEndPicker) && (
-              <DateTimePicker
-                value={parseTime(showStartPicker ? startTime : endTime)}
-                mode="time"
-                is24Hour={true}
-                onChange={(e, d) => handleTimeChange(showStartPicker ? 'start' : 'end', e, d)}
-              />
-            )}
+            <TimePickerModal
+              visible={showStartPicker}
+              onDismiss={() => setShowStartPicker(false)}
+              onConfirm={handleStartTimeConfirm}
+              {...getHoursAndMinutes(startTime)}
+              label="Select start time"
+              cancelLabel="Cancel"
+              confirmLabel="OK"
+              animationType="fade"
+              locale="en"
+            />
+            
+            <TimePickerModal
+              visible={showEndPicker}
+              onDismiss={() => setShowEndPicker(false)}
+              onConfirm={handleEndTimeConfirm}
+              {...getHoursAndMinutes(endTime)}
+              label="Select end time"
+              cancelLabel="Cancel"
+              confirmLabel="OK"
+              animationType="fade"
+              locale="en"
+            />
 
             <Text style={[styles.label, { color: isDarkMode ? '#BBBBBB' : '#666666' }]}>
               Priority

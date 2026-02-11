@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Modal, Pressable, TextInput, Platform, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { DatePickerModal, TimePickerModal } from 'react-native-paper-dates';
 import { useCategoryStore } from '../stores/categoryStore';
 import { useTimeEntryStore } from '../stores/timeEntryStore';
 import { Picker } from '@react-native-picker/picker';
@@ -102,40 +102,63 @@ export const ManualEntryModal: React.FC<Props> = ({ visible, onClose, editEntry 
           <Pressable onPress={() => setShowDatePicker(true)} className="bg-gray-100 dark:bg-gray-800 px-4 py-4 rounded-lg mb-4">
             <Text className="text-gray-900 dark:text-white">{date.toDateString()}</Text>
           </Pressable>
-          {showDatePicker && (
-            <DateTimePicker
-              value={date}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              onChange={(e, d) => { setShowDatePicker(Platform.OS === 'ios'); if (d) setDate(d); }}
-            />
-          )}
+          <DatePickerModal
+            locale="en"
+            mode="single"
+            visible={showDatePicker}
+            onDismiss={() => setShowDatePicker(false)}
+            date={date}
+            onConfirm={(params) => {
+              setShowDatePicker(false);
+              if (params?.date) setDate(params.date);
+            }}
+          />
 
           <Text className="text-gray-700 dark:text-gray-300 mb-2">Start Time</Text>
           <Pressable onPress={() => setShowStartPicker(true)} className="bg-gray-100 dark:bg-gray-800 px-4 py-4 rounded-lg mb-4">
             <Text className="text-gray-900 dark:text-white">{startTime.toLocaleTimeString()}</Text>
           </Pressable>
-          {showStartPicker && (
-            <DateTimePicker
-              value={startTime}
-              mode="time"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              onChange={(e, d) => { setShowStartPicker(Platform.OS === 'ios'); if (d) setStartTime(d); }}
-            />
-          )}
+          <TimePickerModal
+            visible={showStartPicker}
+            onDismiss={() => setShowStartPicker(false)}
+            onConfirm={({ hours, minutes }) => {
+              setShowStartPicker(false);
+              const newTime = new Date(startTime);
+              newTime.setHours(hours);
+              newTime.setMinutes(minutes);
+              setStartTime(newTime);
+            }}
+            hours={startTime.getHours()}
+            minutes={startTime.getMinutes()}
+            label="Select start time"
+            cancelLabel="Cancel"
+            confirmLabel="OK"
+            animationType="fade"
+            locale="en"
+          />
 
           <Text className="text-gray-700 dark:text-gray-300 mb-2">End Time</Text>
           <Pressable onPress={() => setShowEndPicker(true)} className="bg-gray-100 dark:bg-gray-800 px-4 py-4 rounded-lg mb-4">
             <Text className="text-gray-900 dark:text-white">{endTime.toLocaleTimeString()}</Text>
           </Pressable>
-          {showEndPicker && (
-            <DateTimePicker
-              value={endTime}
-              mode="time"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              onChange={(e, d) => { setShowEndPicker(Platform.OS === 'ios'); if (d) setEndTime(d); }}
-            />
-          )}
+          <TimePickerModal
+            visible={showEndPicker}
+            onDismiss={() => setShowEndPicker(false)}
+            onConfirm={({ hours, minutes }) => {
+              setShowEndPicker(false);
+              const newTime = new Date(endTime);
+              newTime.setHours(hours);
+              newTime.setMinutes(minutes);
+              setEndTime(newTime);
+            }}
+            hours={endTime.getHours()}
+            minutes={endTime.getMinutes()}
+            label="Select end time"
+            cancelLabel="Cancel"
+            confirmLabel="OK"
+            animationType="fade"
+            locale="en"
+          />
 
           <Text className="text-gray-700 dark:text-gray-300 mb-2">Notes (optional)</Text>
           <TextInput
