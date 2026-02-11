@@ -151,9 +151,9 @@ export function DailyCommandScreen() {
       {/* Pending Validation Alert */}
       {pendingCount > 0 && (
         <View style={[styles.pendingAlert, { backgroundColor: '#FFC10720' }]}>
-          <Ionicons name="alert-circle" size={20} color="#FF9800" />
+          <Ionicons name="checkmark-circle-outline" size={20} color="#FF9800" />
           <Text style={styles.pendingText}>
-            {pendingCount} block{pendingCount > 1 ? 's' : ''} pending validation
+            {pendingCount} completed block{pendingCount > 1 ? 's' : ''} ready to validate
           </Text>
         </View>
       )}

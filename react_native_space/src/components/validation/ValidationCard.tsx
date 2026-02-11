@@ -59,11 +59,8 @@ export function ValidationCard({
     });
   };
 
-  const daysAgoText = block?.days_ago === 1 
-    ? 'Yesterday' 
-    : block?.days_ago === 0 
-      ? 'Today' 
-      : `${block?.days_ago ?? 0} days ago`;
+  // Since we only show today's blocks, always show "Today"
+  const daysAgoText = 'Today';
 
   return (
     <View

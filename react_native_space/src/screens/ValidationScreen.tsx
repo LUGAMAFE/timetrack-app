@@ -132,10 +132,10 @@ export function ValidationScreen() {
   const renderHeader = () => (
     <View style={[styles.headerInfo, { backgroundColor: isDarkMode ? '#2A2A2A' : '#FFFFFF' }]}>
       <Text style={[styles.headerTitle, { color: isDarkMode ? '#FFFFFF' : '#000000' }]}>
-        Pending Validation
+        Today's Completed Blocks
       </Text>
       <Text style={[styles.headerSubtitle, { color: isDarkMode ? '#BBBBBB' : '#666666' }]}>
-        {pendingBlocks.length} block{pendingBlocks.length !== 1 ? 's' : ''} need your review
+        {pendingBlocks.length} block{pendingBlocks.length !== 1 ? 's' : ''} ready to validate
       </Text>
     </View>
   );

@@ -72,7 +72,10 @@ export class ValidationsService {
   }
 
   async getPendingValidations(userId: string, date?: string) {
-    // Get all pending validations (not filtered by date yet)
+    // FIRST: Auto-complete any pending blocks from previous days as "partial"
+    await this.autoCompletePreviousDays(userId);
+
+    // Get all pending validations
     const { data, error } = await this.supabaseService
       .getAdminClient()
       .from('block_validations')
@@ -106,7 +109,7 @@ export class ValidationsService {
     const todayStr = now.toISOString().split('T')[0];
     const currentTimeStr = now.toTimeString().slice(0, 5); // "HH:mm"
 
-    // Transform and FILTER to only show blocks that have already passed
+    // Transform and FILTER to only show blocks from TODAY that have already finished
     const transformed = (data ?? []).map((validation: any) => {
       const block = validation?.scheduled_block;
       if (!block || !block?.date) return null;
@@ -114,34 +117,77 @@ export class ValidationsService {
       const blockDate = block.date;
       const blockEndTime = block.end_time;
 
-      // CRITICAL: Only show blocks that have FINISHED
-      // 1. Blocks from previous days → show all
-      // 2. Blocks from today → only if end_time has passed
-      // 3. Blocks from future days → never show
-      if (blockDate > todayStr) {
-        return null; // Future blocks
+      // ONLY show blocks from TODAY
+      if (blockDate !== todayStr) {
+        return null;
       }
 
-      if (blockDate === todayStr) {
-        // Today's block - check if it has ended
-        if (blockEndTime > currentTimeStr) {
-          return null; // Block hasn't finished yet
-        }
+      // Block must have finished
+      if (blockEndTime > currentTimeStr) {
+        return null; // Block hasn't finished yet
       }
-
-      // Calculate days_ago
-      const blockDateObj = new Date(blockDate);
-      const todayDateObj = new Date(todayStr);
-      const daysAgo = Math.floor((todayDateObj.getTime() - blockDateObj.getTime()) / (1000 * 60 * 60 * 24));
 
       return {
         ...block,
-        days_ago: daysAgo,
-        validation_id: validation.id, // Include validation ID for updates
+        days_ago: 0, // Always 0 since we only show today
+        validation_id: validation.id,
       };
     }).filter(Boolean);
 
     return transformed;
+  }
+
+  /**
+   * Auto-complete pending blocks from previous days as "partial" (50%)
+   * This runs every time the user opens the validation screen
+   */
+  private async autoCompletePreviousDays(userId: string): Promise<void> {
+    try {
+      const todayStr = new Date().toISOString().split('T')[0];
+
+      // Find all pending validations from days BEFORE today
+      const { data: oldPending, error: fetchError } = await this.supabaseService
+        .getAdminClient()
+        .from('block_validations')
+        .select(`
+          id,
+          scheduled_block:scheduled_blocks!inner(date)
+        `)
+        .eq('user_id', userId)
+        .eq('status', 'pending')
+        .lt('scheduled_block.date', todayStr);
+
+      if (fetchError) {
+        this.logger.error(`Error fetching old pending blocks: ${fetchError.message}`);
+        return;
+      }
+
+      if (!oldPending || oldPending.length === 0) {
+        return; // No old blocks to auto-complete
+      }
+
+      // Auto-complete them as "partial" with 50% completion
+      const idsToUpdate = oldPending.map(v => v.id);
+      
+      const { error: updateError } = await this.supabaseService
+        .getAdminClient()
+        .from('block_validations')
+        .update({
+          status: 'partial',
+          completion_percentage: 50,
+          validated_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .in('id', idsToUpdate);
+
+      if (updateError) {
+        this.logger.error(`Error auto-completing old blocks: ${updateError.message}`);
+      } else {
+        this.logger.log(`Auto-completed ${idsToUpdate.length} pending blocks from previous days as partial`);
+      }
+    } catch (err: any) {
+      this.logger.error(`Exception in autoCompletePreviousDays: ${err.message}`);
+    }
   }
 
   async getValidationStats(userId: string, startDate: string, endDate: string) {
