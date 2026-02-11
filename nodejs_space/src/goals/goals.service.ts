@@ -25,7 +25,12 @@ export class GoalsService {
 
   // ==================== MONTHLY GOALS ====================
 
-  async getMonthlyGoals(userId: string, year: number, month: number) {
+  async getMonthlyGoals(userId: string, year?: number, month?: number) {
+    // Use current year/month if not provided
+    const now = new Date();
+    const targetYear = year ?? now.getFullYear();
+    const targetMonth = month ?? (now.getMonth() + 1);
+
     const { data, error } = await this.supabaseService
       .getAdminClient()
       .from('monthly_goals')
@@ -34,8 +39,8 @@ export class GoalsService {
         category:categories(id, name, icon, color)
       `)
       .eq('user_id', userId)
-      .eq('year', year)
-      .eq('month', month);
+      .eq('year', targetYear)
+      .eq('month', targetMonth);
 
     if (error) {
       this.logger.error(`Error fetching monthly goals: ${error.message}`);
@@ -83,7 +88,12 @@ export class GoalsService {
 
   // ==================== WEEKLY GOALS ====================
 
-  async getWeeklyGoals(userId: string, year: number, weekNumber: number) {
+  async getWeeklyGoals(userId: string, year?: number, weekNumber?: number) {
+    // Use current year/week if not provided
+    const now = new Date();
+    const targetYear = year ?? now.getFullYear();
+    const targetWeek = weekNumber ?? this.getWeekNumber(now);
+
     const { data, error } = await this.supabaseService
       .getAdminClient()
       .from('weekly_goals')
@@ -92,14 +102,20 @@ export class GoalsService {
         category:categories(id, name, icon, color)
       `)
       .eq('user_id', userId)
-      .eq('year', year)
-      .eq('week_number', weekNumber);
+      .eq('year', targetYear)
+      .eq('week_number', targetWeek);
 
     if (error) {
       this.logger.error(`Error fetching weekly goals: ${error.message}`);
       throw new BadRequestException(error.message);
     }
     return data ?? [];
+  }
+
+  private getWeekNumber(date: Date): number {
+    const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
+    const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000;
+    return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
   }
 
   async createWeeklyGoal(userId: string, dto: CreateWeeklyGoalDto) {
@@ -141,13 +157,18 @@ export class GoalsService {
 
   // ==================== PROGRESS TRACKING ====================
 
-  async getMonthlyProgress(userId: string, year: number, month: number) {
+  async getMonthlyProgress(userId: string, year?: number, month?: number) {
+    // Use current year/month if not provided
+    const now = new Date();
+    const targetYear = year ?? now.getFullYear();
+    const targetMonth = month ?? (now.getMonth() + 1);
+
     // Get goals
-    const goals = await this.getMonthlyGoals(userId, year, month);
+    const goals = await this.getMonthlyGoals(userId, targetYear, targetMonth);
 
     // Get completed hours per category from validated blocks
-    const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
-    const endDate = new Date(year, month, 0).toISOString().split('T')[0];
+    const startDate = `${targetYear}-${String(targetMonth).padStart(2, '0')}-01`;
+    const endDate = new Date(targetYear, targetMonth, 0).toISOString().split('T')[0];
 
     const { data: validations } = await this.supabaseService
       .getAdminClient()
@@ -191,9 +212,9 @@ export class GoalsService {
       const target = goal.target_hours;
       const percentage = target > 0 ? Math.round((achieved / target) * 100) : 0;
       const remaining = Math.max(0, target - achieved);
-      const daysInMonth = new Date(year, month, 0).getDate();
+      const daysInMonth = new Date(targetYear, targetMonth, 0).getDate();
       const today = new Date();
-      const currentDay = today.getFullYear() === year && today.getMonth() + 1 === month
+      const currentDay = today.getFullYear() === targetYear && today.getMonth() + 1 === targetMonth
         ? today.getDate()
         : daysInMonth;
       const daysRemaining = daysInMonth - currentDay;
@@ -228,12 +249,17 @@ export class GoalsService {
     return progress;
   }
 
-  async getWeeklyProgress(userId: string, year: number, weekNumber: number) {
-    const goals = await this.getWeeklyGoals(userId, year, weekNumber);
+  async getWeeklyProgress(userId: string, year?: number, weekNumber?: number) {
+    // Use current year/week if not provided
+    const now = new Date();
+    const targetYear = year ?? now.getFullYear();
+    const targetWeek = weekNumber ?? this.getWeekNumber(now);
+
+    const goals = await this.getWeeklyGoals(userId, targetYear, targetWeek);
 
     // Calculate week start/end dates
-    const firstDayOfYear = new Date(year, 0, 1);
-    const daysOffset = (weekNumber - 1) * 7;
+    const firstDayOfYear = new Date(targetYear, 0, 1);
+    const daysOffset = (targetWeek - 1) * 7;
     const weekStart = new Date(firstDayOfYear);
     weekStart.setDate(firstDayOfYear.getDate() + daysOffset - firstDayOfYear.getDay());
     const weekEnd = new Date(weekStart);

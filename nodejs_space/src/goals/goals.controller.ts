@@ -18,10 +18,12 @@ export class GoalsController {
   @ApiOperation({ summary: 'Get monthly goals' })
   async getMonthlyGoals(
     @CurrentUser() user: any,
-    @Query('year') year: string,
-    @Query('month') month: string,
+    @Query('year') year?: string,
+    @Query('month') month?: string,
   ) {
-    return this.goalsService.getMonthlyGoals(user.userId, parseInt(year), parseInt(month));
+    const yearNum = year ? parseInt(year, 10) : undefined;
+    const monthNum = month ? parseInt(month, 10) : undefined;
+    return this.goalsService.getMonthlyGoals(user.userId, yearNum, monthNum);
   }
 
   @Post('monthly')
@@ -40,10 +42,12 @@ export class GoalsController {
   @ApiOperation({ summary: 'Get monthly progress with goals' })
   async getMonthlyProgress(
     @CurrentUser() user: any,
-    @Query('year') year: string,
-    @Query('month') month: string,
+    @Query('year') year?: string,
+    @Query('month') month?: string,
   ) {
-    return this.goalsService.getMonthlyProgress(user.userId, parseInt(year), parseInt(month));
+    const yearNum = year ? parseInt(year, 10) : undefined;
+    const monthNum = month ? parseInt(month, 10) : undefined;
+    return this.goalsService.getMonthlyProgress(user.userId, yearNum, monthNum);
   }
 
   // ==================== WEEKLY ====================
@@ -52,10 +56,12 @@ export class GoalsController {
   @ApiOperation({ summary: 'Get weekly goals' })
   async getWeeklyGoals(
     @CurrentUser() user: any,
-    @Query('year') year: string,
-    @Query('week') week: string,
+    @Query('year') year?: string,
+    @Query('week') week?: string,
   ) {
-    return this.goalsService.getWeeklyGoals(user.userId, parseInt(year), parseInt(week));
+    const yearNum = year ? parseInt(year, 10) : undefined;
+    const weekNum = week ? parseInt(week, 10) : undefined;
+    return this.goalsService.getWeeklyGoals(user.userId, yearNum, weekNum);
   }
 
   @Post('weekly')
@@ -74,9 +80,11 @@ export class GoalsController {
   @ApiOperation({ summary: 'Get weekly progress with goals' })
   async getWeeklyProgress(
     @CurrentUser() user: any,
-    @Query('year') year: string,
-    @Query('week') week: string,
+    @Query('year') year?: string,
+    @Query('week') week?: string,
   ) {
-    return this.goalsService.getWeeklyProgress(user.userId, parseInt(year), parseInt(week));
+    const yearNum = year ? parseInt(year, 10) : undefined;
+    const weekNum = week ? parseInt(week, 10) : undefined;
+    return this.goalsService.getWeeklyProgress(user.userId, yearNum, weekNum);
   }
 }
