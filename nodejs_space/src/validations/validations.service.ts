@@ -107,24 +107,56 @@ export class ValidationsService {
     // Get current date and time
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
-    const currentTimeStr = now.toTimeString().slice(0, 5); // "HH:mm"
+    const currentTimeStr = now.toTimeString().slice(0, 8); // "HH:mm:ss"
 
-    // Transform and FILTER to only show blocks from TODAY that have already finished
+    // Helper to convert time to minutes
+    const timeToMinutes = (time: string) => {
+      const [h, m] = time.split(':').map(Number);
+      return h * 60 + m;
+    };
+
+    // Transform and FILTER to only show blocks that have ACTUALLY finished
     const transformed = (data ?? []).map((validation: any) => {
       const block = validation?.scheduled_block;
       if (!block || !block?.date) return null;
 
       const blockDate = block.date;
+      const blockStartTime = block.start_time;
       const blockEndTime = block.end_time;
 
-      // ONLY show blocks from TODAY
-      if (blockDate !== todayStr) {
-        return null;
-      }
+      // Check if block crosses midnight
+      const startMins = timeToMinutes(blockStartTime);
+      const endMins = timeToMinutes(blockEndTime);
+      const crossesMidnight = endMins < startMins;
 
-      // Block must have finished
-      if (blockEndTime > currentTimeStr) {
-        return null; // Block hasn't finished yet
+      if (crossesMidnight) {
+        // Block crosses midnight - it ENDS on the NEXT day
+        // Example: 23:00-05:00 on Wed → ends on Thu at 05:00
+        
+        // Calculate the ACTUAL end date
+        const actualEndDate = new Date(blockDate);
+        actualEndDate.setDate(actualEndDate.getDate() + 1);
+        const actualEndDateStr = actualEndDate.toISOString().split('T')[0];
+
+        // Only show if TODAY is the end date AND time has passed
+        if (actualEndDateStr !== todayStr) {
+          return null; // Block doesn't end today
+        }
+
+        // Check if end time has passed TODAY
+        if (blockEndTime > currentTimeStr) {
+          return null; // Block hasn't finished yet
+        }
+      } else {
+        // Normal block - starts and ends on same day
+        if (blockDate !== todayStr) {
+          return null; // Not today
+        }
+
+        // Block must have finished
+        if (blockEndTime > currentTimeStr) {
+          return null; // Block hasn't finished yet
+        }
       }
 
       return {
