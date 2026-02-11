@@ -1,5 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, StyleSheet, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useThemeStore } from '../../stores/themeStore';
 import type { ScheduledBlock } from '../../types';
 import { format } from 'date-fns';
@@ -13,7 +14,9 @@ interface DayTimelineProps {
   endHour?: number;
 }
 
-const HOUR_HEIGHT = 60; // Altura por hora en píxeles
+// Zoom levels for hour height
+const ZOOM_LEVELS = [40, 60, 80, 100, 120, 150]; // px per hour
+const DEFAULT_ZOOM_INDEX = 1; // 60px default
 const HOUR_LABEL_WIDTH = 50;
 
 // Convierte "HH:mm" a minutos desde medianoche
@@ -38,6 +41,53 @@ function calculateDuration(startTime: string, endTime: string, originalCrossesMi
   return endMinutes - startMinutes;
 }
 
+// Determina el tamaño de fuente y visibilidad del texto según la altura del bloque
+function getTextStyle(blockHeight: number) {
+  // Si el bloque es muy pequeño (< 25px), no mostrar texto
+  if (blockHeight < 25) {
+    return {
+      showText: false,
+      timeFontSize: 0,
+      titleFontSize: 0,
+      notesFontSize: 0,
+    };
+  }
+  
+  // Si el bloque es pequeño (25-40px), solo mostrar título pequeño
+  if (blockHeight < 40) {
+    return {
+      showText: true,
+      showTime: false,
+      showNotes: false,
+      timeFontSize: 0,
+      titleFontSize: 9,
+      notesFontSize: 0,
+    };
+  }
+  
+  // Si el bloque es mediano (40-60px), mostrar tiempo y título
+  if (blockHeight < 60) {
+    return {
+      showText: true,
+      showTime: true,
+      showNotes: false,
+      timeFontSize: 9,
+      titleFontSize: 11,
+      notesFontSize: 0,
+    };
+  }
+  
+  // Bloques normales (60px+), mostrar todo
+  return {
+    showText: true,
+    showTime: true,
+    showNotes: true,
+    timeFontSize: 10,
+    titleFontSize: 13,
+    notesFontSize: 11,
+  };
+}
+
 // Detecta overlaps y asigna columnas a los bloques
 interface PositionedBlock extends ScheduledBlock {
   top: number;
@@ -46,7 +96,7 @@ interface PositionedBlock extends ScheduledBlock {
   totalColumns: number;
 }
 
-function positionBlocks(blocks: ScheduledBlock[], startHour: number): PositionedBlock[] {
+function positionBlocks(blocks: ScheduledBlock[], startHour: number, hourHeight: number): PositionedBlock[] {
   if (!blocks || blocks.length === 0) return [];
 
   const positioned: PositionedBlock[] = blocks.map(block => {
@@ -58,8 +108,8 @@ function positionBlocks(blocks: ScheduledBlock[], startHour: number): Positioned
       block?.end_time ?? '00:00'
     );
     
-    const top = ((startMinutes / 60) - startHour) * HOUR_HEIGHT;
-    const height = Math.max((duration / 60) * HOUR_HEIGHT, 30); // Mínimo 30px
+    const top = ((startMinutes / 60) - startHour) * hourHeight;
+    const height = Math.max((duration / 60) * hourHeight, 20); // Mínimo 20px
 
     return {
       ...block,
@@ -118,6 +168,9 @@ export function DayTimeline({
   endHour = 24,
 }: DayTimelineProps) {
   const isDarkMode = useThemeStore((s) => s.isDarkMode);
+  const [zoomIndex, setZoomIndex] = useState(DEFAULT_ZOOM_INDEX);
+  
+  const hourHeight = ZOOM_LEVELS[zoomIndex] ?? 60;
   
   const hours = useMemo(() => {
     const result = [];
@@ -126,6 +179,18 @@ export function DayTimeline({
     }
     return result;
   }, [startHour, endHour]);
+
+  const handleZoomIn = () => {
+    if (zoomIndex < ZOOM_LEVELS.length - 1) {
+      setZoomIndex(zoomIndex + 1);
+    }
+  };
+
+  const handleZoomOut = () => {
+    if (zoomIndex > 0) {
+      setZoomIndex(zoomIndex - 1);
+    }
+  };
 
   const positionedBlocks = useMemo(() => {
     // Filter blocks for this specific date
@@ -171,15 +236,15 @@ export function DayTimeline({
     });
     
     const allBlocksForThisView = [...splitBlocks, ...prevDayMidnightCrossers];
-    return positionBlocks(allBlocksForThisView as ScheduledBlock[], startHour);
-  }, [blocks, date, startHour]);
+    return positionBlocks(allBlocksForThisView as ScheduledBlock[], startHour, hourHeight);
+  }, [blocks, date, startHour, hourHeight]);
 
   const currentHour = new Date().getHours();
   const currentMinute = new Date().getMinutes();
   const isToday = format(new Date(), 'yyyy-MM-dd') === date;
   
   const currentTimePosition = isToday 
-    ? (currentHour - startHour + currentMinute / 60) * HOUR_HEIGHT 
+    ? (currentHour - startHour + currentMinute / 60) * hourHeight 
     : -1;
 
   if (positionedBlocks.length === 0) {
@@ -195,18 +260,59 @@ export function DayTimeline({
     );
   }
 
-  const timelineHeight = (endHour - startHour) * HOUR_HEIGHT;
+  const timelineHeight = (endHour - startHour) * hourHeight;
 
   return (
-    <ScrollView 
-      style={styles.container}
-      contentContainerStyle={[styles.contentContainer, { minHeight: timelineHeight + 40 }]}
-      showsVerticalScrollIndicator={true}
-    >
-      <View style={[styles.timeline, { height: timelineHeight }]}>
-        {/* Hour lines */}
-        {hours.map((hour) => {
-          const top = (hour - startHour) * HOUR_HEIGHT;
+    <View style={styles.container}>
+      {/* Zoom Controls */}
+      <View style={[styles.zoomControls, { backgroundColor: isDarkMode ? '#2A2A2A' : '#FFFFFF' }]}>
+        <View style={styles.zoomLeft}>
+          <TouchableOpacity 
+            onPress={handleZoomOut} 
+            disabled={zoomIndex === 0}
+            style={[
+              styles.zoomButton,
+              zoomIndex === 0 && styles.zoomButtonDisabled
+            ]}
+          >
+            <Ionicons 
+              name="remove-circle-outline" 
+              size={24} 
+              color={zoomIndex === 0 ? '#888888' : (isDarkMode ? '#FFFFFF' : '#000000')} 
+            />
+          </TouchableOpacity>
+        </View>
+        <Text style={[styles.zoomText, { color: isDarkMode ? '#FFFFFF' : '#000000' }]}>
+          {hourHeight}px
+        </Text>
+        <View style={styles.zoomRight}>
+          <TouchableOpacity 
+            onPress={handleZoomIn}
+            disabled={zoomIndex === ZOOM_LEVELS.length - 1}
+            style={[
+              styles.zoomButton,
+              zoomIndex === ZOOM_LEVELS.length - 1 && styles.zoomButtonDisabled
+            ]}
+          >
+            <Ionicons 
+              name="add-circle-outline" 
+              size={24} 
+              color={zoomIndex === ZOOM_LEVELS.length - 1 ? '#888888' : (isDarkMode ? '#FFFFFF' : '#000000')} 
+            />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Timeline ScrollView */}
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={[styles.contentContainer, { minHeight: timelineHeight + 40 }]}
+        showsVerticalScrollIndicator={true}
+      >
+        <View style={[styles.timeline, { height: timelineHeight }]}>
+          {/* Hour lines */}
+          {hours.map((hour) => {
+            const top = (hour - startHour) * hourHeight;
           return (
             <View key={hour} style={[styles.hourRow, { top }]}>
               <Text style={[styles.hourLabel, { color: isDarkMode ? '#888888' : '#666666' }]}>
@@ -240,6 +346,9 @@ export function DayTimeline({
               ? `${(block.column * 100) / block.totalColumns}%`
               : 0;
 
+            // Get dynamic text styles based on block height
+            const textStyle = getTextStyle(block.height);
+
             return (
               <TouchableOpacity
                 key={block?.id ?? Math.random().toString()}
@@ -262,33 +371,54 @@ export function DayTimeline({
                 ]}
                 activeOpacity={0.8}
               >
-                <View style={styles.blockContent}>
-                  {/* @ts-ignore */}
-                  {block._isContinuation && (
-                    <Text style={styles.continuationLabel}>↓ Continued</Text>
-                  )}
-                  <Text style={styles.blockTime} numberOfLines={1}>
-                    {block?.start_time} - {block?.end_time}
-                  </Text>
-                  <Text style={styles.blockTitle} numberOfLines={1}>
-                    {block?.title ?? 'Untitled'}
-                  </Text>
-                  {block.height > 60 && block?.notes && (
-                    <Text style={styles.blockNotes} numberOfLines={2}>
-                      {block.notes}
+                {textStyle.showText ? (
+                  <View style={styles.blockContent}>
+                    {/* @ts-ignore */}
+                    {block._isContinuation && textStyle.showTime && (
+                      <Text style={[styles.continuationLabel, { fontSize: textStyle.timeFontSize }]}>
+                        ↓ Continued
+                      </Text>
+                    )}
+                    {textStyle.showTime && (
+                      <Text 
+                        style={[styles.blockTime, { fontSize: textStyle.timeFontSize }]} 
+                        numberOfLines={1}
+                      >
+                        {block?.start_time} - {block?.end_time}
+                      </Text>
+                    )}
+                    <Text 
+                      style={[styles.blockTitle, { fontSize: textStyle.titleFontSize }]} 
+                      numberOfLines={1}
+                    >
+                      {block?.title ?? 'Untitled'}
                     </Text>
-                  )}
-                  {/* @ts-ignore */}
-                  {block._isFirstPart && (
-                    <Text style={styles.continuesLabel}>Continues tomorrow ↓</Text>
-                  )}
-                </View>
+                    {textStyle.showNotes && block?.notes && (
+                      <Text 
+                        style={[styles.blockNotes, { fontSize: textStyle.notesFontSize }]} 
+                        numberOfLines={2}
+                      >
+                        {block.notes}
+                      </Text>
+                    )}
+                    {/* @ts-ignore */}
+                    {block._isFirstPart && textStyle.showTime && (
+                      <Text style={[styles.continuesLabel, { fontSize: textStyle.timeFontSize }]}>
+                        Continues tomorrow ↓
+                      </Text>
+                    )}
+                  </View>
+                ) : (
+                  // Para bloques muy pequeños, solo mostrar el bloque de color
+                  <View style={styles.blockContent} />
+                )}
               </TouchableOpacity>
             );
           })}
         </View>
       </View>
     </ScrollView>
+    </View>
   );
 }
 
@@ -301,6 +431,38 @@ function formatHour(hour: number): string {
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  zoomControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  zoomLeft: {
+    width: 60,
+    alignItems: 'flex-start',
+  },
+  zoomRight: {
+    width: 60,
+    alignItems: 'flex-end',
+  },
+  zoomButton: {
+    padding: 4,
+  },
+  zoomButtonDisabled: {
+    opacity: 0.3,
+  },
+  zoomText: {
+    fontSize: 12,
+    fontWeight: '600',
+    flex: 1,
+    textAlign: 'center',
+  },
+  scrollView: {
     flex: 1,
   },
   contentContainer: {
