@@ -44,7 +44,7 @@ export const useScheduledBlockStore = create<ScheduledBlockState>((set, get) => 
   fetchBlocksForDate: async (date) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await api.get('/blocks', { params: { date } });
+      const response = await api.get(`/blocks/date/${date}`);
       const newBlocks = response?.data ?? [];
       
       set((state) => {
@@ -66,8 +66,8 @@ export const useScheduledBlockStore = create<ScheduledBlockState>((set, get) => 
   fetchBlocksForRange: async (startDate, endDate) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await api.get('/blocks', { 
-        params: { startDate, endDate } 
+      const response = await api.get('/blocks/range', { 
+        params: { start: startDate, end: endDate } 
       });
       const newBlocks = response?.data ?? [];
       
