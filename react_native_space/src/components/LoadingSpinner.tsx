@@ -1,24 +1,54 @@
 import React from 'react';
-import { View, ActivityIndicator, Text } from 'react-native';
+import { View, StyleSheet, Text, ActivityIndicator } from 'react-native';
+import { useThemeStore } from '../stores/themeStore';
 
-interface Props {
+interface LoadingSpinnerProps {
   message?: string;
   fullScreen?: boolean;
 }
 
-export const LoadingSpinner: React.FC<Props> = ({ message, fullScreen = true }) => {
-  if (fullScreen) {
+export function LoadingSpinner({ message, fullScreen = false }: LoadingSpinnerProps) {
+  const isDarkMode = useThemeStore((s) => s.isDarkMode);
+
+  if (!fullScreen) {
     return (
-      <View className="flex-1 items-center justify-center bg-white dark:bg-gray-900">
-        <ActivityIndicator size="large" color="#6366F1" />
-        {message && <Text className="mt-4 text-gray-600 dark:text-gray-400">{message}</Text>}
+      <View style={styles.inline}>
+        <ActivityIndicator size="small" color="#6200EE" />
+        {message && (
+          <Text style={[styles.message, { color: isDarkMode ? '#BBBBBB' : '#666666' }]}>
+            {message}
+          </Text>
+        )}
       </View>
     );
   }
+
   return (
-    <View className="items-center justify-center py-8">
-      <ActivityIndicator size="large" color="#6366F1" />
-      {message && <Text className="mt-2 text-gray-600 dark:text-gray-400">{message}</Text>}
+    <View style={[styles.fullScreen, { backgroundColor: isDarkMode ? '#121212' : '#F5F5F5' }]}>
+      <ActivityIndicator size="large" color="#6200EE" />
+      {message && (
+        <Text style={[styles.message, { color: isDarkMode ? '#FFFFFF' : '#000000' }]}>
+          {message}
+        </Text>
+      )}
     </View>
   );
-};
+}
+
+const styles = StyleSheet.create({
+  inline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+  },
+  fullScreen: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  message: {
+    marginLeft: 12,
+    fontSize: 14,
+  },
+});

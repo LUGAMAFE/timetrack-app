@@ -1,0 +1,194 @@
+import { create } from 'zustand';
+import api from '../lib/api';
+import { 
+  MonthlyGoal, 
+  WeeklyGoal, 
+  CreateMonthlyGoalDto, 
+  CreateWeeklyGoalDto,
+  GoalProgress,
+  DailyBudget
+} from '../types';
+
+interface GoalState {
+  monthlyGoals: MonthlyGoal[];
+  weeklyGoals: WeeklyGoal[];
+  monthlyProgress: GoalProgress[];
+  weeklyProgress: GoalProgress[];
+  dailyBudget: DailyBudget[];
+  isLoading: boolean;
+  error: string | null;
+  
+  // Actions
+  fetchMonthlyGoals: (year?: number, month?: number) => Promise<void>;
+  fetchWeeklyGoals: (year?: number, week?: number) => Promise<void>;
+  createMonthlyGoal: (data: CreateMonthlyGoalDto) => Promise<boolean>;
+  createWeeklyGoal: (data: CreateWeeklyGoalDto) => Promise<boolean>;
+  updateMonthlyGoal: (id: string, data: Partial<CreateMonthlyGoalDto>) => Promise<boolean>;
+  deleteMonthlyGoal: (id: string) => Promise<boolean>;
+  fetchMonthlyProgress: (year?: number, month?: number) => Promise<void>;
+  fetchWeeklyProgress: (year?: number, week?: number) => Promise<void>;
+  fetchDailyBudget: () => Promise<void>;
+  clearError: () => void;
+}
+
+export const useGoalStore = create<GoalState>((set, get) => ({
+  monthlyGoals: [],
+  weeklyGoals: [],
+  monthlyProgress: [],
+  weeklyProgress: [],
+  dailyBudget: [],
+  isLoading: false,
+  error: null,
+
+  fetchMonthlyGoals: async (year, month) => {
+    set({ isLoading: true, error: null });
+    try {
+      const params: any = {};
+      if (year) params.year = year;
+      if (month) params.month = month;
+      
+      const response = await api.get('/goals/monthly', { params });
+      set({ monthlyGoals: response?.data ?? [], isLoading: false });
+    } catch (e: any) {
+      console.error('[GoalStore] fetchMonthlyGoals error:', e?.message);
+      set({ error: e?.response?.data?.message ?? 'Failed to fetch monthly goals', isLoading: false });
+    }
+  },
+
+  fetchWeeklyGoals: async (year, week) => {
+    set({ isLoading: true, error: null });
+    try {
+      const params: any = {};
+      if (year) params.year = year;
+      if (week) params.week = week;
+      
+      const response = await api.get('/goals/weekly', { params });
+      set({ weeklyGoals: response?.data ?? [], isLoading: false });
+    } catch (e: any) {
+      console.error('[GoalStore] fetchWeeklyGoals error:', e?.message);
+      set({ error: e?.response?.data?.message ?? 'Failed to fetch weekly goals', isLoading: false });
+    }
+  },
+
+  createMonthlyGoal: async (data) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await api.post('/goals/monthly', data);
+      const newGoal = response?.data;
+      if (newGoal) {
+        set((state) => ({ 
+          monthlyGoals: [...state.monthlyGoals, newGoal], 
+          isLoading: false 
+        }));
+        return true;
+      }
+      set({ isLoading: false });
+      return false;
+    } catch (e: any) {
+      console.error('[GoalStore] createMonthlyGoal error:', e?.message);
+      set({ error: e?.response?.data?.message ?? 'Failed to create goal', isLoading: false });
+      return false;
+    }
+  },
+
+  createWeeklyGoal: async (data) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await api.post('/goals/weekly', data);
+      const newGoal = response?.data;
+      if (newGoal) {
+        set((state) => ({ 
+          weeklyGoals: [...state.weeklyGoals, newGoal], 
+          isLoading: false 
+        }));
+        return true;
+      }
+      set({ isLoading: false });
+      return false;
+    } catch (e: any) {
+      console.error('[GoalStore] createWeeklyGoal error:', e?.message);
+      set({ error: e?.response?.data?.message ?? 'Failed to create goal', isLoading: false });
+      return false;
+    }
+  },
+
+  updateMonthlyGoal: async (id, data) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await api.put(`/goals/monthly/${id}`, data);
+      const updatedGoal = response?.data;
+      if (updatedGoal) {
+        set((state) => ({
+          monthlyGoals: state.monthlyGoals.map(g => g?.id === id ? updatedGoal : g),
+          isLoading: false
+        }));
+        return true;
+      }
+      set({ isLoading: false });
+      return false;
+    } catch (e: any) {
+      console.error('[GoalStore] updateMonthlyGoal error:', e?.message);
+      set({ error: e?.response?.data?.message ?? 'Failed to update goal', isLoading: false });
+      return false;
+    }
+  },
+
+  deleteMonthlyGoal: async (id) => {
+    set({ isLoading: true, error: null });
+    try {
+      await api.delete(`/goals/monthly/${id}`);
+      set((state) => ({
+        monthlyGoals: state.monthlyGoals.filter(g => g?.id !== id),
+        isLoading: false
+      }));
+      return true;
+    } catch (e: any) {
+      console.error('[GoalStore] deleteMonthlyGoal error:', e?.message);
+      set({ error: e?.response?.data?.message ?? 'Failed to delete goal', isLoading: false });
+      return false;
+    }
+  },
+
+  fetchMonthlyProgress: async (year, month) => {
+    set({ isLoading: true, error: null });
+    try {
+      const params: any = {};
+      if (year) params.year = year;
+      if (month) params.month = month;
+      
+      const response = await api.get('/goals/progress/monthly', { params });
+      set({ monthlyProgress: response?.data ?? [], isLoading: false });
+    } catch (e: any) {
+      console.error('[GoalStore] fetchMonthlyProgress error:', e?.message);
+      set({ error: e?.response?.data?.message ?? 'Failed to fetch progress', isLoading: false });
+    }
+  },
+
+  fetchWeeklyProgress: async (year, week) => {
+    set({ isLoading: true, error: null });
+    try {
+      const params: any = {};
+      if (year) params.year = year;
+      if (week) params.week = week;
+      
+      const response = await api.get('/goals/progress/weekly', { params });
+      set({ weeklyProgress: response?.data ?? [], isLoading: false });
+    } catch (e: any) {
+      console.error('[GoalStore] fetchWeeklyProgress error:', e?.message);
+      set({ error: e?.response?.data?.message ?? 'Failed to fetch progress', isLoading: false });
+    }
+  },
+
+  fetchDailyBudget: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await api.get('/goals/budget/daily');
+      set({ dailyBudget: response?.data ?? [], isLoading: false });
+    } catch (e: any) {
+      console.error('[GoalStore] fetchDailyBudget error:', e?.message);
+      set({ error: e?.response?.data?.message ?? 'Failed to fetch budget', isLoading: false });
+    }
+  },
+
+  clearError: () => set({ error: null })
+}));

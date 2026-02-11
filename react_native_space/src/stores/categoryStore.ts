@@ -6,11 +6,13 @@ interface CategoryState {
   categories: Category[];
   isLoading: boolean;
   error: string | null;
+  
   fetchCategories: () => Promise<void>;
-  createCategory: (dto: CreateCategoryDto) => Promise<boolean>;
-  updateCategory: (id: string, dto: Partial<CreateCategoryDto>) => Promise<boolean>;
+  createCategory: (data: CreateCategoryDto) => Promise<Category | null>;
+  updateCategory: (id: string, data: Partial<CreateCategoryDto>) => Promise<boolean>;
   deleteCategory: (id: string) => Promise<boolean>;
   seedDefaults: () => Promise<void>;
+  clearError: () => void;
 }
 
 export const useCategoryStore = create<CategoryState>((set, get) => ({
@@ -21,39 +23,52 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
   fetchCategories: async () => {
     set({ isLoading: true, error: null });
     try {
-      console.log('[CategoryStore] Fetching categories...');
-      const res = await api.get('/api/categories');
-      console.log('[CategoryStore] Fetched:', res?.data);
-      set({ categories: res?.data?.categories ?? [], isLoading: false });
+      const response = await api.get('/categories');
+      set({ categories: response?.data ?? [], isLoading: false });
     } catch (e: any) {
-      console.log('[CategoryStore] Fetch error:', e?.response?.data || e?.message);
-      set({ error: e?.message || 'Failed to fetch categories', isLoading: false });
+      console.error('[CategoryStore] fetchCategories error:', e?.message);
+      set({ error: e?.response?.data?.message ?? 'Failed to fetch categories', isLoading: false });
     }
   },
 
-  createCategory: async (dto) => {
+  createCategory: async (data) => {
     set({ isLoading: true, error: null });
     try {
-      console.log('[CategoryStore] Creating category:', dto);
-      const response = await api.post('/api/categories', dto);
-      console.log('[CategoryStore] Create response:', response?.data);
-      await get().fetchCategories();
-      return true;
+      const response = await api.post('/categories', data);
+      const newCategory = response?.data;
+      if (newCategory) {
+        set((state) => ({ 
+          categories: [...state.categories, newCategory], 
+          isLoading: false 
+        }));
+        return newCategory;
+      }
+      set({ isLoading: false });
+      return null;
     } catch (e: any) {
-      console.log('[CategoryStore] Create error:', e?.response?.data || e?.message);
-      set({ error: e?.response?.data?.message || e?.message || 'Failed to create category', isLoading: false });
+      console.error('[CategoryStore] createCategory error:', e?.message);
+      set({ error: e?.response?.data?.message ?? 'Failed to create category', isLoading: false });
+      return null;
+    }
+  },
+
+  updateCategory: async (id, data) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await api.put(`/categories/${id}`, data);
+      const updatedCategory = response?.data;
+      if (updatedCategory) {
+        set((state) => ({
+          categories: state.categories.map(c => c?.id === id ? updatedCategory : c),
+          isLoading: false
+        }));
+        return true;
+      }
+      set({ isLoading: false });
       return false;
-    }
-  },
-
-  updateCategory: async (id, dto) => {
-    set({ isLoading: true, error: null });
-    try {
-      await api.put(`/api/categories/${id}`, dto);
-      await get().fetchCategories();
-      return true;
     } catch (e: any) {
-      set({ error: e?.message || 'Failed to update category', isLoading: false });
+      console.error('[CategoryStore] updateCategory error:', e?.message);
+      set({ error: e?.response?.data?.message ?? 'Failed to update category', isLoading: false });
       return false;
     }
   },
@@ -61,24 +76,56 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
   deleteCategory: async (id) => {
     set({ isLoading: true, error: null });
     try {
-      await api.delete(`/api/categories/${id}`);
-      await get().fetchCategories();
+      await api.delete(`/categories/${id}`);
+      set((state) => ({
+        categories: state.categories.filter(c => c?.id !== id),
+        isLoading: false
+      }));
       return true;
     } catch (e: any) {
-      set({ error: e?.message || 'Failed to delete category', isLoading: false });
+      console.error('[CategoryStore] deleteCategory error:', e?.message);
+      set({ error: e?.response?.data?.message ?? 'Failed to delete category', isLoading: false });
       return false;
     }
   },
 
   seedDefaults: async () => {
     try {
-      console.log('[CategoryStore] Seeding defaults...');
-      const res = await api.post('/api/categories/seed-defaults');
-      console.log('[CategoryStore] Seed response:', res?.data);
-      await get().fetchCategories();
+      // Check if user already has categories
+      const response = await api.get('/categories');
+      const existing = response?.data ?? [];
+      
+      if (existing.length > 0) {
+        set({ categories: existing });
+        return;
+      }
+
+      // Create default categories if none exist
+      const defaults: CreateCategoryDto[] = [
+        { name: 'Work', icon: 'briefcase', color: '#2196F3', category_type: 'work', default_block_duration: 60 },
+        { name: 'Exercise', icon: 'fitness', color: '#4CAF50', category_type: 'personal', default_block_duration: 45 },
+        { name: 'Learning', icon: 'book', color: '#9C27B0', category_type: 'personal', default_block_duration: 30 },
+        { name: 'Rest', icon: 'bed', color: '#795548', category_type: 'rest', is_rest_category: true, default_block_duration: 15 },
+        { name: 'Social', icon: 'people', color: '#FF9800', category_type: 'personal', default_block_duration: 60 },
+      ];
+
+      const newCategories: Category[] = [];
+      for (const cat of defaults) {
+        try {
+          const res = await api.post('/categories', cat);
+          if (res?.data) {
+            newCategories.push(res.data);
+          }
+        } catch (err) {
+          console.log('[CategoryStore] Error creating default category:', cat.name);
+        }
+      }
+
+      set({ categories: newCategories });
     } catch (e: any) {
-      console.log('[CategoryStore] Seed error:', e?.response?.data || e?.message);
-      // ignore if already seeded
+      console.error('[CategoryStore] seedDefaults error:', e?.message);
     }
-  }
+  },
+
+  clearError: () => set({ error: null })
 }));
