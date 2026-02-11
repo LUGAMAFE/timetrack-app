@@ -34,7 +34,15 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
   createCategory: async (data) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await api.post('/categories', data);
+      // Only send fields that backend accepts
+      const payload = {
+        name: data.name,
+        icon: data.icon,
+        color: data.color,
+        monthly_goal_hours: data.monthly_goal_hours,
+        monthly_limit_hours: data.monthly_limit_hours,
+      };
+      const response = await api.post('/categories', payload);
       const newCategory = response?.data;
       if (newCategory) {
         set((state) => ({ 
@@ -55,7 +63,15 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
   updateCategory: async (id, data) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await api.put(`/categories/${id}`, data);
+      // Only send fields that backend accepts
+      const payload: any = {};
+      if (data.name !== undefined) payload.name = data.name;
+      if (data.icon !== undefined) payload.icon = data.icon;
+      if (data.color !== undefined) payload.color = data.color;
+      if (data.monthly_goal_hours !== undefined) payload.monthly_goal_hours = data.monthly_goal_hours;
+      if (data.monthly_limit_hours !== undefined) payload.monthly_limit_hours = data.monthly_limit_hours;
+      
+      const response = await api.put(`/categories/${id}`, payload);
       const updatedCategory = response?.data;
       if (updatedCategory) {
         set((state) => ({
@@ -101,12 +117,13 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
       }
 
       // Create default categories if none exist
-      const defaults: CreateCategoryDto[] = [
-        { name: 'Work', icon: 'briefcase', color: '#2196F3', category_type: 'work', default_block_duration: 60 },
-        { name: 'Exercise', icon: 'fitness', color: '#4CAF50', category_type: 'personal', default_block_duration: 45 },
-        { name: 'Learning', icon: 'book', color: '#9C27B0', category_type: 'personal', default_block_duration: 30 },
-        { name: 'Rest', icon: 'bed', color: '#795548', category_type: 'rest', is_rest_category: true, default_block_duration: 15 },
-        { name: 'Social', icon: 'people', color: '#FF9800', category_type: 'personal', default_block_duration: 60 },
+      // Backend only accepts: name, icon, color, monthly_goal_hours, monthly_limit_hours
+      const defaults = [
+        { name: 'Work', icon: 'briefcase', color: '#2196F3' },
+        { name: 'Exercise', icon: 'fitness', color: '#4CAF50' },
+        { name: 'Learning', icon: 'book', color: '#9C27B0' },
+        { name: 'Rest', icon: 'bed', color: '#795548' },
+        { name: 'Social', icon: 'people', color: '#FF9800' },
       ];
 
       const newCategories: Category[] = [];

@@ -145,7 +145,8 @@ export const useTemplateStore = create<TemplateState>((set, get) => ({
   addBlockToTemplate: async (templateId, data) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await api.post(`/templates/${templateId}/blocks`, data);
+      // Backend expects template_id in the body, not in the URL
+      const response = await api.post('/templates/blocks', { ...data, template_id: templateId });
       const newBlock = response?.data;
       if (newBlock) {
         // Refresh the selected template to include the new block

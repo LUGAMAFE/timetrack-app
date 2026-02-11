@@ -4,19 +4,13 @@
 
 export interface Category {
   id: string;
-  user_id: string;
+  user_id?: string;
   name: string;
   icon: string;
   color: string;
   monthly_goal_hours?: number;
   monthly_limit_hours?: number;
-  is_default: boolean;
-  category_type: 'standard' | 'rest' | 'work' | 'personal';
-  default_block_duration?: number;
-  requires_rest_after?: boolean;
-  rest_duration_minutes?: number;
-  max_continuous_minutes?: number;
-  is_rest_category?: boolean;
+  is_default?: boolean;
   created_at?: string;
 }
 
@@ -96,7 +90,6 @@ export interface OmissionReason {
 }
 
 export interface ValidateBlockDto {
-  block_id: string;
   status: ValidationStatus;
   actual_start_time?: string;
   actual_end_time?: string;
@@ -446,12 +439,6 @@ export interface CreateCategoryDto {
   name: string;
   icon: string;
   color: string;
-  category_type?: 'standard' | 'rest' | 'work' | 'personal';
-  default_block_duration?: number;
-  requires_rest_after?: boolean;
-  rest_duration_minutes?: number;
-  max_continuous_minutes?: number;
-  is_rest_category?: boolean;
   monthly_goal_hours?: number;
   monthly_limit_hours?: number;
 }

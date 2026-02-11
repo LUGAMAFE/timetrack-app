@@ -4,8 +4,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   TextInput,
   Button,
-  SegmentedButtons,
-  Switch,
   Text,
   IconButton,
   Portal,
@@ -48,12 +46,8 @@ export function CategoryEditorScreen() {
   const [name, setName] = useState('');
   const [icon, setIcon] = useState('briefcase');
   const [color, setColor] = useState('#6200EE');
-  const [categoryType, setCategoryType] = useState<'standard' | 'rest' | 'work' | 'personal'>('standard');
-  const [defaultDuration, setDefaultDuration] = useState('60');
-  const [requiresRestAfter, setRequiresRestAfter] = useState(false);
-  const [restDuration, setRestDuration] = useState('15');
-  const [maxContinuous, setMaxContinuous] = useState('120');
-  const [isRestCategory, setIsRestCategory] = useState(false);
+  const [monthlyGoalHours, setMonthlyGoalHours] = useState('');
+  const [monthlyLimitHours, setMonthlyLimitHours] = useState('');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [error, setError] = useState('');
 
@@ -62,12 +56,8 @@ export function CategoryEditorScreen() {
       setName(existingCategory.name ?? '');
       setIcon(existingCategory.icon ?? 'briefcase');
       setColor(existingCategory.color ?? '#6200EE');
-      setCategoryType(existingCategory.category_type ?? 'standard');
-      setDefaultDuration(String(existingCategory.default_block_duration ?? 60));
-      setRequiresRestAfter(existingCategory.requires_rest_after ?? false);
-      setRestDuration(String(existingCategory.rest_duration_minutes ?? 15));
-      setMaxContinuous(String(existingCategory.max_continuous_minutes ?? 120));
-      setIsRestCategory(existingCategory.is_rest_category ?? false);
+      setMonthlyGoalHours(existingCategory.monthly_goal_hours ? String(existingCategory.monthly_goal_hours) : '');
+      setMonthlyLimitHours(existingCategory.monthly_limit_hours ? String(existingCategory.monthly_limit_hours) : '');
     }
   }, [existingCategory]);
 
@@ -87,13 +77,15 @@ export function CategoryEditorScreen() {
       name: name.trim(),
       icon,
       color,
-      category_type: categoryType,
-      default_block_duration: parseInt(defaultDuration, 10) || 60,
-      requires_rest_after: requiresRestAfter,
-      rest_duration_minutes: parseInt(restDuration, 10) || 15,
-      max_continuous_minutes: parseInt(maxContinuous, 10) || 120,
-      is_rest_category: isRestCategory,
     };
+    
+    // Only include optional fields if they have values
+    if (monthlyGoalHours) {
+      data.monthly_goal_hours = parseInt(monthlyGoalHours, 10) || undefined;
+    }
+    if (monthlyLimitHours) {
+      data.monthly_limit_hours = parseInt(monthlyLimitHours, 10) || undefined;
+    }
 
     let success = false;
     if (isEditing && categoryId) {
@@ -124,7 +116,6 @@ export function CategoryEditorScreen() {
     name: name || 'Preview',
     icon,
     color,
-    category_type: categoryType,
     is_default: false,
   };
 
@@ -154,22 +145,6 @@ export function CategoryEditorScreen() {
             value={name}
             onChangeText={setName}
             style={styles.input}
-          />
-
-          {/* Category Type */}
-          <Text style={[styles.label, { color: isDarkMode ? '#BBBBBB' : '#666666' }]}>
-            Category Type
-          </Text>
-          <SegmentedButtons
-            value={categoryType}
-            onValueChange={(value) => setCategoryType(value as any)}
-            buttons={[
-              { value: 'work', label: 'Work' },
-              { value: 'personal', label: 'Personal' },
-              { value: 'rest', label: 'Rest' },
-              { value: 'standard', label: 'Other' },
-            ]}
-            style={styles.segmented}
           />
 
           {/* Color Picker */}
@@ -213,51 +188,26 @@ export function CategoryEditorScreen() {
             ))}
           </View>
 
-          {/* Default Duration */}
+          {/* Monthly Goal Hours */}
           <TextInput
             mode="outlined"
-            label="Default Block Duration (minutes)"
-            value={defaultDuration}
-            onChangeText={setDefaultDuration}
+            label="Monthly Goal Hours (optional)"
+            value={monthlyGoalHours}
+            onChangeText={setMonthlyGoalHours}
             keyboardType="number-pad"
             style={styles.input}
+            placeholder="e.g., 20"
           />
 
-          {/* Rest Category Toggle */}
-          <View style={styles.switchRow}>
-            <Text style={[styles.switchLabel, { color: isDarkMode ? '#FFFFFF' : '#000000' }]}>
-              This is a rest category
-            </Text>
-            <Switch value={isRestCategory} onValueChange={setIsRestCategory} />
-          </View>
-
-          {/* Requires Rest After */}
-          <View style={styles.switchRow}>
-            <Text style={[styles.switchLabel, { color: isDarkMode ? '#FFFFFF' : '#000000' }]}>
-              Requires rest after use
-            </Text>
-            <Switch value={requiresRestAfter} onValueChange={setRequiresRestAfter} />
-          </View>
-
-          {requiresRestAfter && (
-            <TextInput
-              mode="outlined"
-              label="Rest Duration (minutes)"
-              value={restDuration}
-              onChangeText={setRestDuration}
-              keyboardType="number-pad"
-              style={styles.input}
-            />
-          )}
-
-          {/* Max Continuous */}
+          {/* Monthly Limit Hours */}
           <TextInput
             mode="outlined"
-            label="Max Continuous Use (minutes)"
-            value={maxContinuous}
-            onChangeText={setMaxContinuous}
+            label="Monthly Limit Hours (optional)"
+            value={monthlyLimitHours}
+            onChangeText={setMonthlyLimitHours}
             keyboardType="number-pad"
             style={styles.input}
+            placeholder="e.g., 40"
           />
 
           {/* Actions */}
@@ -330,9 +280,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginBottom: 8,
   },
-  segmented: {
-    marginBottom: 16,
-  },
   colorGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -349,16 +296,6 @@ const styles = StyleSheet.create({
   iconButton: {
     margin: 2,
     borderRadius: 8,
-  },
-  switchRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-    paddingVertical: 8,
-  },
-  switchLabel: {
-    fontSize: 16,
   },
   actions: {
     marginTop: 24,

@@ -73,10 +73,9 @@ export const useAIStore = create<AIState>((set, get) => ({
   analyzeFeasibility: async (weekStartDate) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await api.post('/ai/analyze-feasibility', { week_start_date: weekStartDate });
+      const response = await api.post('/ai/analyze/feasibility', { week_start_date: weekStartDate });
       const analysis = response?.data;
       set({ lastAnalysis: analysis ?? null, isLoading: false });
-      // Refresh insights to get any new ones created
       await get().fetchInsights();
       return analysis ?? null;
     } catch (e: any) {
@@ -89,7 +88,7 @@ export const useAIStore = create<AIState>((set, get) => ({
   predictAlerts: async () => {
     set({ isLoading: true, error: null });
     try {
-      const response = await api.post('/ai/predict-alerts');
+      const response = await api.post('/ai/analyze/predictions');
       const predictions = response?.data ?? [];
       set({ lastPredictions: predictions, isLoading: false });
       await get().fetchInsights();
@@ -108,7 +107,7 @@ export const useAIStore = create<AIState>((set, get) => ({
       if (startDate) params.start_date = startDate;
       if (endDate) params.end_date = endDate;
       
-      const response = await api.post('/ai/detect-time-leaks', params);
+      const response = await api.post('/ai/analyze/time-leaks', params);
       const leaks = response?.data ?? [];
       set({ lastTimeLeaks: leaks, isLoading: false });
       await get().fetchInsights();
@@ -123,7 +122,7 @@ export const useAIStore = create<AIState>((set, get) => ({
   suggestRecovery: async (categoryId, hoursNeeded) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await api.post('/ai/suggest-recovery', { 
+      const response = await api.post('/ai/analyze/recovery', { 
         category_id: categoryId, 
         hours_needed: hoursNeeded 
       });

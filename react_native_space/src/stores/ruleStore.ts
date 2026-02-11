@@ -42,7 +42,7 @@ export const useRuleStore = create<RuleState>((set, get) => ({
   fetchRestRules: async () => {
     set({ isLoading: true, error: null });
     try {
-      const response = await api.get('/rules/rest-rules');
+      const response = await api.get('/rules/rest');
       set({ restRules: response?.data ?? [], isLoading: false });
     } catch (e: any) {
       console.error('[RuleStore] fetchRestRules error:', e?.message);
@@ -53,7 +53,7 @@ export const useRuleStore = create<RuleState>((set, get) => ({
   fetchUsageLimits: async () => {
     set({ isLoading: true, error: null });
     try {
-      const response = await api.get('/rules/usage-limits');
+      const response = await api.get('/rules/limits');
       set({ usageLimits: response?.data ?? [], isLoading: false });
     } catch (e: any) {
       console.error('[RuleStore] fetchUsageLimits error:', e?.message);
@@ -77,7 +77,7 @@ export const useRuleStore = create<RuleState>((set, get) => ({
   createRestRule: async (data) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await api.post('/rules/rest-rules', data);
+      const response = await api.post('/rules/rest', data);
       const newRule = response?.data;
       if (newRule) {
         set((state) => ({ 
@@ -98,7 +98,7 @@ export const useRuleStore = create<RuleState>((set, get) => ({
   updateRestRule: async (id, data) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await api.put(`/rules/rest-rules/${id}`, data);
+      const response = await api.put(`/rules/rest/${id}`, data);
       const updatedRule = response?.data;
       if (updatedRule) {
         set((state) => ({
@@ -119,7 +119,7 @@ export const useRuleStore = create<RuleState>((set, get) => ({
   deleteRestRule: async (id) => {
     set({ isLoading: true, error: null });
     try {
-      await api.delete(`/rules/rest-rules/${id}`);
+      await api.delete(`/rules/rest/${id}`);
       set((state) => ({
         restRules: state.restRules.filter(r => r?.id !== id),
         isLoading: false
@@ -135,7 +135,7 @@ export const useRuleStore = create<RuleState>((set, get) => ({
   createUsageLimit: async (data) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await api.post('/rules/usage-limits', data);
+      const response = await api.post('/rules/limits', data);
       const newLimit = response?.data;
       if (newLimit) {
         set((state) => ({ 
@@ -156,7 +156,7 @@ export const useRuleStore = create<RuleState>((set, get) => ({
   updateUsageLimit: async (id, data) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await api.put(`/rules/usage-limits/${id}`, data);
+      const response = await api.put(`/rules/limits/${id}`, data);
       const updatedLimit = response?.data;
       if (updatedLimit) {
         set((state) => ({
@@ -177,7 +177,7 @@ export const useRuleStore = create<RuleState>((set, get) => ({
   deleteUsageLimit: async (id) => {
     set({ isLoading: true, error: null });
     try {
-      await api.delete(`/rules/usage-limits/${id}`);
+      await api.delete(`/rules/limits/${id}`);
       set((state) => ({
         usageLimits: state.usageLimits.filter(l => l?.id !== id),
         isLoading: false
@@ -211,9 +211,8 @@ export const useRuleStore = create<RuleState>((set, get) => ({
 
   checkViolations: async (date) => {
     try {
-      const response = await api.post('/rules/check-violations', { date });
+      const response = await api.post('/rules/check', { date });
       const newViolations = response?.data ?? [];
-      // Refresh violations list
       await get().fetchViolations();
       return newViolations;
     } catch (e: any) {

@@ -156,7 +156,7 @@ export const useGoalStore = create<GoalState>((set, get) => ({
       if (year) params.year = year;
       if (month) params.month = month;
       
-      const response = await api.get('/goals/progress/monthly', { params });
+      const response = await api.get('/goals/monthly/progress', { params });
       set({ monthlyProgress: response?.data ?? [], isLoading: false });
     } catch (e: any) {
       console.error('[GoalStore] fetchMonthlyProgress error:', e?.message);
@@ -171,7 +171,7 @@ export const useGoalStore = create<GoalState>((set, get) => ({
       if (year) params.year = year;
       if (week) params.week = week;
       
-      const response = await api.get('/goals/progress/weekly', { params });
+      const response = await api.get('/goals/weekly/progress', { params });
       set({ weeklyProgress: response?.data ?? [], isLoading: false });
     } catch (e: any) {
       console.error('[GoalStore] fetchWeeklyProgress error:', e?.message);
@@ -180,14 +180,9 @@ export const useGoalStore = create<GoalState>((set, get) => ({
   },
 
   fetchDailyBudget: async () => {
-    set({ isLoading: true, error: null });
-    try {
-      const response = await api.get('/goals/budget/daily');
-      set({ dailyBudget: response?.data ?? [], isLoading: false });
-    } catch (e: any) {
-      console.error('[GoalStore] fetchDailyBudget error:', e?.message);
-      set({ error: e?.response?.data?.message ?? 'Failed to fetch budget', isLoading: false });
-    }
+    // This endpoint doesn't exist in backend, so we'll calculate locally or skip
+    console.log('[GoalStore] fetchDailyBudget - endpoint not implemented');
+    set({ dailyBudget: [] });
   },
 
   clearError: () => set({ error: null })

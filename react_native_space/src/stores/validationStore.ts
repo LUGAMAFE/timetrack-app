@@ -18,8 +18,8 @@ interface ValidationState {
   // Actions
   fetchPendingBlocks: () => Promise<void>;
   fetchOmissionReasons: () => Promise<void>;
-  fetchValidationHistory: (startDate?: string, endDate?: string) => Promise<void>;
-  validateBlock: (data: ValidateBlockDto) => Promise<boolean>;
+  fetchValidationStats: (startDate: string, endDate: string) => Promise<any>;
+  validateBlock: (blockId: string, data: Omit<ValidateBlockDto, 'block_id'>) => Promise<boolean>;
   bulkValidate: (blockIds: string[], status: 'completed' | 'partial' | 'omitted') => Promise<boolean>;
   clearError: () => void;
 }
@@ -51,28 +51,29 @@ export const useValidationStore = create<ValidationState>((set, get) => ({
     }
   },
 
-  fetchValidationHistory: async (startDate, endDate) => {
+  fetchValidationStats: async (startDate, endDate) => {
     set({ isLoading: true, error: null });
     try {
-      const params: any = {};
-      if (startDate) params.startDate = startDate;
-      if (endDate) params.endDate = endDate;
-      
-      const response = await api.get('/validations/history', { params });
-      set({ validationHistory: response?.data ?? [], isLoading: false });
+      const response = await api.get('/validations/stats', { 
+        params: { start: startDate, end: endDate } 
+      });
+      set({ isLoading: false });
+      return response?.data ?? null;
     } catch (e: any) {
-      console.error('[ValidationStore] fetchValidationHistory error:', e?.message);
-      set({ error: e?.response?.data?.message ?? 'Failed to fetch history', isLoading: false });
+      console.error('[ValidationStore] fetchValidationStats error:', e?.message);
+      set({ error: e?.response?.data?.message ?? 'Failed to fetch stats', isLoading: false });
+      return null;
     }
   },
 
-  validateBlock: async (data) => {
+  validateBlock: async (blockId, data) => {
     set({ isLoading: true, error: null });
     try {
-      await api.post('/validations/validate', data);
+      // Backend expects POST /validations/block/:blockId with body containing status, etc.
+      await api.post(`/validations/block/${blockId}`, data);
       // Remove from pending list
       set((state) => ({
-        pendingBlocks: state.pendingBlocks.filter(b => b?.id !== data.block_id),
+        pendingBlocks: state.pendingBlocks.filter(b => b?.id !== blockId),
         isLoading: false
       }));
       return true;
@@ -88,7 +89,7 @@ export const useValidationStore = create<ValidationState>((set, get) => ({
     try {
       // Validate each block sequentially
       for (const blockId of blockIds) {
-        await api.post('/validations/validate', { block_id: blockId, status });
+        await api.post(`/validations/block/${blockId}`, { status });
       }
       // Remove validated blocks from pending
       set((state) => ({
