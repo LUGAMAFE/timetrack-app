@@ -10,6 +10,7 @@ import {
   Switch,
   Menu,
   Divider,
+  Snackbar,
 } from 'react-native-paper';
 import { TimePickerModal } from 'react-native-paper-dates';
 import { useThemeStore } from '../../stores/themeStore';
@@ -95,6 +96,9 @@ export function TimeBlockEditorModal({
   const handleSave = async () => {
     if (!validateForm()) return;
 
+    // Clear previous errors
+    setError('');
+
     // Detect if block crosses midnight
     const crossesMidnight = startTime >= endTime;
 
@@ -120,6 +124,12 @@ export function TimeBlockEditorModal({
 
     if (success) {
       onDismiss();
+    } else {
+      // Get error directly from store after failed operation
+      const currentError = useScheduledBlockStore.getState().error;
+      if (currentError) {
+        setError(currentError);
+      }
     }
   };
 
@@ -336,6 +346,20 @@ export function TimeBlockEditorModal({
           </ScrollView>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Error Snackbar */}
+      <Snackbar
+        visible={!!error}
+        onDismiss={() => setError('')}
+        duration={4000}
+        action={{
+          label: 'Dismiss',
+          onPress: () => setError(''),
+        }}
+        style={{ backgroundColor: '#D32F2F' }}
+      >
+        {error}
+      </Snackbar>
     </Portal>
   );
 }
